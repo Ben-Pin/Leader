@@ -1,0 +1,31 @@
+{
+  "name": "leader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local lead management with a browser UI and MCP connector",
+  "engines": { "node": ">=24.0.0" },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && vite build",
+    "start": "node server/http.mjs",
+    "mcp": "node server/mcp.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "express": "^5.1.0",
+    "lucide-react": "^0.577.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1"
+  }
+}

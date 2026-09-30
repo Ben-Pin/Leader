@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "leader",
+  "version": "0.1.0",
+  "description": "Local lead cards, lists and color tags backed by the same SQLite data as the Leader browser app.",
+  "author": { "name": "Leader" },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Leader",
+        "shortDescription": "Local lead cards and tags",
+        "longDescription": "Search and manage local client cards, lists, tags and contact history. Writes use revision checks and share data with the Leader browser interface.",
+        "developerName": "Leader",
+        "category": "Productivity",
+        "capabilities": ["Write"],
+        "brandColor": "#4772FA",
+        "defaultPrompt": "Покажи карточки Leader и последние контакты."
+      }
+    }
+  }
+}
