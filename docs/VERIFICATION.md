@@ -5,13 +5,19 @@ Verified locally on Windows on 2026-10-01, using Node.js 24 and the Codex in-app
 ## Automated checks
 
 - Production TypeScript check and Vite bundle: passed.
-- Nine Node tests cover seed idempotency, persistence, ordered tags and quarter colors, input validation, transaction rollback, stale revision rejection, Unicode search, pagination, reversible archive, HTTP security and the actual MCP SDK transport.
+- Thirteen Node tests cover seed idempotency, persistence, ordered tags and quarter colors, input validation, transaction rollback, stale revision rejection, Unicode search, pagination, reversible archive, HTTP security, company isolation and portable export/import, independent flags, and the actual MCP SDK transport.
 - A disposable SQLite database with 10,025 cards in one list passed count, deep pagination, search and reopen/persistence checks. One measured run: insert 22,122 ms, read a deep 200-card page 46 ms, text search 270 ms. These are observations on one machine, not performance guarantees or a browser stress test.
-- MCP tests spawn the real stdio server, discover all nine tools, exercise reads and writes and verify shared persistence using another database connection. This does not establish installation in a desktop host.
+- MCP tests spawn the real stdio server, discover nine tools in legacy single-database mode, exercise reads and writes and verify shared persistence using another database connection. Multi-company mode adds four company tools and requires companyId for scoped operations; tests verify isolation and export/import. This does not establish installation in a desktop host.
 
 ## Browser checks
 
 Created a temporary fictional card; edited country and contact; set last-contact date using the native date field; added a custom tag, checklist item and history note. Verified saved fields and history after page reload. Quarter tag is displayed first. No real customer or mail data used.
+
+Company/flag update: in an isolated data directory, verified Save Changes? / Cancel (retain draft), No (discard), Yes (save and leave); enabled two flags with comments, verified their independent filtered lists, then cleared them through checkboxes and Save. Switched between empty Clab and BrothersInArms databases and verified isolation after creating a fictional Clab card. Exported Clab through the browser, selected the downloaded JSON with the file chooser, and imported it as Clab (import); the copied card appeared in the new database. The browser download event timed out, but the file was saved successfully and its subsequent import completed.
+
+The main database was backed up before the additive migration. Existing 13 demo/user-edited cards remain present. Clab and BrothersInArms start empty; the mail draft package has not been imported. The updated interface screenshot is saved locally under ignored test-results/leader-interface.jpg.
+
+Compact UI follow-up: TypeScript and production bundle passed. Browser verification confirmed three round flag checkboxes in one horizontal row, independent toggles, comments visible only while active, and preservation of a comment when toggled off/on. Test edits were discarded with No; the existing card remained at version 8. Chip logo and favicon updated. Screenshot: test-results/leader-compact-chip.jpg.
 
 ## Known boundaries
 

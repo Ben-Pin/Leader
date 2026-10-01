@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { createStore } from '../server/store.mjs';
+import { createCompanyManager } from '../server/companies.mjs';
 
 function value(result) {
   assert.notEqual(result.isError, true, JSON.stringify(result));
@@ -39,7 +40,7 @@ test('real stdio MCP client shares persistent cards, detects conflicts, and rest
   await client.connect(transport);
   assert.equal(client.getServerVersion().name, 'leader');
   const discovery = await client.listTools();
-  assert.deepEqual(discovery.tools.map(tool => tool.name).sort(), ['list_lists', 'list_tags', 'search_cards', 'get_card', 'create_card', 'update_card', 'add_comment', 'create_list', 'create_tag'].sort());
+  assert.deepEqual(discovery.tools.map(tool => tool.name).sort(), ['country_coverage', 'list_lists', 'list_tags', 'search_cards', 'get_card', 'create_card', 'update_card', 'add_comment', 'create_list', 'create_tag'].sort());
   assert.ok(discovery.tools.find(tool => tool.name === 'update_card').inputSchema.required.includes('version'));
   assert.equal(discovery.tools.find(tool => tool.name === 'get_card').annotations.readOnlyHint, true);
   const call = async (name, args = {}) => value(await client.callTool({ name, arguments: args }));
@@ -98,4 +99,30 @@ test('real stdio MCP client shares persistent cards, detects conflicts, and rest
     assert.ok(persisted.activity.some(item => item.text === 'A persisted connector comment'));
   } finally { reopened.close(); }
   assert.doesNotMatch(stderr, /Startup failed|failed:/);
+});
+
+test('MCP selects companies explicitly and roundtrips flags and company exports', { timeout: 30000 }, async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'leader-mcp-companies-test-'));
+  const companies = createCompanyManager({ directory, seed: false });
+  const transport = new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../server/mcp.mjs', import.meta.url))],
+    env: { ...process.env, LEADER_DB: '', LEADER_DB_PATH: '', LEADER_DATA_DIR: directory, LEADER_SEED: 'false' }, stderr: 'pipe' });
+  const client = new Client({ name: 'leader-company-test', version: '1.0.0' });
+  try {
+    await client.connect(transport);
+    const call = async (name, args = {}) => value(await client.callTool({ name, arguments: args }));
+    const discovery = await client.listTools();
+    assert.ok(discovery.tools.find(tool => tool.name === 'create_card').inputSchema.required.includes('companyId'));
+    assert.ok((await call('list_companies')).companies.some(company => company.name === 'BrothersInArms'));
+    const lists = await call('list_lists', { companyId: 'clab' });
+    const card = await call('create_card', { companyId: 'clab', listId: lists.lists[0].id, title: 'Scoped fixture', flags: { inQuote: { active: true, comment: 'Waiting' } } });
+    assert.equal((await call('search_cards', { companyId: 'clab', view: 'inQuote' })).total, 1);
+    assert.equal((await call('search_cards', { companyId: 'brothers-in-arms' })).total, 0);
+    assert.equal((await client.callTool({ name: 'get_card', arguments: { companyId: 'brothers-in-arms', id: card.id } })).isError, true);
+    const bundle = await call('export_company', { id: 'clab' });
+    const copy = await call('import_company', { name: 'MCP copy', bundle });
+    assert.equal((await call('get_card', { companyId: copy.id, id: card.id })).flags.inQuote.comment, 'Waiting');
+    await call('update_card', { companyId: 'clab', id: card.id, version: card.version, flags: { inQuote: { active: false, comment: 'Accepted' } } });
+    assert.equal((await call('search_cards', { companyId: 'clab', view: 'active' })).total, 0);
+    assert.equal((await call('get_card', { companyId: copy.id, id: card.id })).flags.inQuote.active, true);
+  } finally { await client.close(); companies.close(); rmSync(directory, { recursive: true, force: true }); }
 });

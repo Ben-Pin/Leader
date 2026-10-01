@@ -4,9 +4,10 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import { createStore, StoreError } from './store.mjs';
+import { createCompanyManager } from './companies.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export function createHttpApp({ store, token = randomBytes(32).toString('hex') }) {
+export function createHttpApp({ store, companies, token = randomBytes(32).toString('hex') }) {
   const app = express();
   app.disable('x-powered-by');
   app.use((request, response, next) => {
@@ -18,7 +19,7 @@ export function createHttpApp({ store, token = randomBytes(32).toString('hex') }
     if (request.path.startsWith('/api')) response.setHeader('Cache-Control', 'no-store');
     next();
   });
-  app.use(express.json({ limit: '256kb' }));
+  app.use(express.json({ limit: '128mb' }));
   app.use('/api', (request, response, next) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return next();
     const supplied = request.get('X-Leader-Token') || '';
@@ -30,14 +31,34 @@ export function createHttpApp({ store, token = randomBytes(32).toString('hex') }
     next();
   });
   app.get('/api/health', (_request, response) => response.json({ ok: true }));
-  app.get('/api/bootstrap', (_request, response) => response.json({ ...store.bootstrap(), csrfToken: token }));
-  app.get('/api/cards', (request, response) => response.json(store.listCards(request.query)));
-  app.get('/api/cards/:id', (request, response) => response.json(store.getCard(request.params.id)));
-  app.post('/api/cards', (request, response) => response.status(201).json(store.createCard(request.body)));
-  app.patch('/api/cards/:id', (request, response) => response.json(store.updateCard(request.params.id, request.body)));
-  app.post('/api/cards/:id/comments', (request, response) => response.status(201).json(store.addComment(request.params.id, request.body)));
-  app.post('/api/lists', (request, response) => response.status(201).json(store.createList(request.body)));
-  app.post('/api/tags', (request, response) => response.status(201).json(store.createTag(request.body)));
+  if (companies) {
+    app.get('/api/companies', (_request, response) => response.json({ companies: companies.listCompanies() }));
+    app.get('/api/companies/disconnected', (_request, response) => response.json({ companies: companies.listDisconnected() }));
+    app.post('/api/companies/:id/disconnect', (request,response) => response.json(companies.disconnectCompany(request.params.id)));
+    app.post('/api/companies/:id/reconnect', (request,response) => response.json(companies.reconnectCompany(request.params.id)));
+    app.post('/api/companies', (request, response) => response.status(201).json(companies.createCompany(request.body)));
+    app.post('/api/companies/import', (request, response) => response.status(201).json(companies.importCompany(request.body)));
+    app.get('/api/companies/:id/export', (request, response) => {
+      response.setHeader('Content-Disposition', `attachment; filename="leader-${request.params.id}.json"`);
+      response.json(companies.exportCompany(request.params.id));
+    });
+  }
+  app.use('/api', (request, _response, next) => {
+    const companyId = request.get('X-Leader-Company');
+    if (companies && !companyId && !['GET', 'HEAD'].includes(request.method)) throw new StoreError('Выберите компанию перед изменением данных.', 400, 'COMPANY_REQUIRED');
+    request.company = companies ? companies.getCompany(companyId || 'demo') : { id: 'standalone', name: 'Local' };
+    request.store = companies ? companies.getStore(request.company.id) : store;
+    next();
+  });
+  app.get('/api/bootstrap', (request, response) => response.json({ ...request.store.bootstrap(), csrfToken: token, company: request.company, companies: companies?.listCompanies() || [request.company] }));
+  app.get('/api/cards', (request, response) => response.json(request.store.listCards(request.query)));
+  app.get('/api/geography', (request,response) => response.json(request.store.geography()));
+  app.get('/api/cards/:id', (request, response) => response.json(request.store.getCard(request.params.id)));
+  app.post('/api/cards', (request, response) => response.status(201).json(request.store.createCard(request.body)));
+  app.patch('/api/cards/:id', (request, response) => response.json(request.store.updateCard(request.params.id, request.body)));
+  app.post('/api/cards/:id/comments', (request, response) => response.status(201).json(request.store.addComment(request.params.id, request.body)));
+  app.post('/api/lists', (request, response) => response.status(201).json(request.store.createList(request.body)));
+  app.post('/api/tags', (request, response) => response.status(201).json(request.store.createTag(request.body)));
   app.use('/api', (_request, response) => response.status(404).json({ error: 'Маршрут не найден.', code: 'NOT_FOUND' }));
   const dist = resolve(root, 'dist');
   app.use(express.static(dist));
@@ -56,11 +77,13 @@ export function createHttpApp({ store, token = randomBytes(32).toString('hex') }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const store = createStore({ path: process.env.LEADER_DB || process.env.LEADER_DB_PATH || resolve(root, 'data/leader.sqlite'), seed: process.env.LEADER_SEED !== 'false' });
+  const path = process.env.LEADER_DB || process.env.LEADER_DB_PATH;
+  const store = path ? createStore({ path, seed: process.env.LEADER_SEED !== 'false' }) : null;
+  const companies = path ? null : createCompanyManager({ directory: process.env.LEADER_DATA_DIR || resolve(root, 'data'), seed: process.env.LEADER_SEED !== 'false' });
   const port = Number(process.env.PORT || 4177);
-  const app = createHttpApp({ store });
+  const app = createHttpApp({ store, companies });
   const server = app.listen(port, '127.0.0.1', () => console.log(`Leader: http://127.0.0.1:${port}`));
-  const close = () => server.close(() => { store.close(); process.exit(0); });
+  const close = () => server.close(() => { (companies || store).close(); process.exit(0); });
   process.on('SIGINT', close);
   process.on('SIGTERM', close);
 }

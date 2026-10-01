@@ -4,10 +4,20 @@ import {
   ChevronRight, Circle, CircleCheck, CircleHelp, CirclePlus, Clock3, Copy, Flag, Globe2,
   Hash, Inbox, LayoutList, LoaderCircle, Mail, MessageSquare, MoreHorizontal, Plus,
   Search, Settings2, ShieldCheck, SlidersHorizontal, Star, Tag as TagIcon, Trash2, UserRound,
-  UsersRound, X,
+  UsersRound, X, DollarSign, Truck, TriangleAlert, Save, Database, Download, Upload,
 } from 'lucide-react';
-import { ApiError, request } from './api';
-import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag } from './types';
+import { ApiError, request, selectCompany } from './api';
+import { Relationships } from './Relationships';
+import { ClientGlobe } from './ClientGlobe';
+import { countryNames,tagCategory } from './geography';
+import './workspaces.css';
+import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag, FlagKey, CompanyDatabase } from './types';
+
+const workFlags: { key: FlagKey; label: string; Icon: typeof DollarSign }[] = [
+  { key: 'inQuote', label: 'In quote', Icon: DollarSign },
+  { key: 'logisticsIssue', label: 'Logistics issue', Icon: Truck },
+  { key: 'administrativeIssue', label: 'Administrative issue', Icon: TriangleAlert },
+];
 
 const statuses: { value: LeadStatus; label: string; color: string }[] = [
   { value: 'lead', label: 'Новый контакт', color: '#8f97aa' },
@@ -35,9 +45,10 @@ function quarterTag(date: string): Tag | null {
 }
 function draftFrom(card: Card): CardDraft {
   return { title: card.title, listId: card.listId, description: card.description || '', company: card.company || '',
-    country: card.country || '', contactName: card.contactName || '', email: card.email || '', lastContact: card.lastContact || '',
+    country: card.country || '', secondaryCountry: card.secondaryCountry || '', contactQuarter: card.contactQuarter, contactName: card.contactName || '', email: card.email || '', lastContact: card.lastContact || '',
     dueDate: card.dueDate || '', status: card.status, priority: card.priority,
-    tagIds: card.tags.filter(t => !t.id.startsWith('quarter:')).map(t => t.id), checklist: card.checklist || [] };
+    tagIds: card.tags.filter(t => !t.id.startsWith('quarter:')).map(t => t.id), checklist: card.checklist || [], flags: Object.fromEntries(workFlags.map(({key})=>[key,{active:card.flags[key].active,comment:card.flags[key].comment}])) as CardDraft['flags'],
+    accountType: card.accountType, distributorIds: card.distributorIds };
 }
 function Badge({ tag, onClick }: { tag: Tag; onClick?: () => void }) {
   const props = { className: `tag-badge ${tag.id.startsWith('quarter:') ? 'quarter-badge' : ''}`, style: colorStyle(tag.color), title: tag.id.startsWith('quarter:') ? `Последний контакт: ${tag.name.split('-')[1]} квартал ${tag.name.split('-')[0]} года` : tag.name };
@@ -76,7 +87,7 @@ function Modal({ title, children, onClose, className = '' }: { title: string; ch
 export default function App() {
   const [bootstrap, setBootstrap] = useState<Bootstrap | null>(null);
   const [startupError, setStartupError] = useState('');
-  const [selection, setSelection] = useState<Selection>({ kind: 'view', id: 'active' });
+  const [selection, setSelection] = useState<Selection>({ kind: 'view', id: 'all' });
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sort, setSort] = useState('contact');
@@ -92,13 +103,15 @@ export default function App() {
   const [saveError, setSaveError] = useState('');
   const [conflict, setConflict] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [modal, setModal] = useState<'card' | 'list' | 'tag' | 'about' | 'archive' | null>(null);
+  const [modal, setModal] = useState<'card' | 'list' | 'tag' | 'about' | 'archive' | 'companies' | 'globe' | 'profile' | null>(null);
+  const [userName,setUserName]=useState(()=>localStorage.getItem('leader.userName')||'Local user');
+  const [savePrompt, setSavePrompt] = useState(false);
+  const pendingDecision = useRef<((proceed: boolean) => void) | null>(null);
   const [toast, setToast] = useState('');
   const [detailTab, setDetailTab] = useState<'card' | 'activity'>('card');
   const [tagPicker, setTagPicker] = useState(false);
   const [showTags, setShowTags] = useState(true);
   const [showLists, setShowLists] = useState(true);
-  const [showAllTags, setShowAllTags] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [checkText, setCheckText] = useState('');
   const [comment, setComment] = useState('');
@@ -133,9 +146,10 @@ export default function App() {
   }, []);
 
   const queryString = useCallback((offset = 0) => {
-    const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset), sort, q: debouncedSearch });
-    if (selection.kind === 'list') { query.set('listId', selection.id); query.set('view', 'active'); }
-    else if (selection.kind === 'tag') { query.set('tag', selection.id); query.set('view', 'active'); }
+    const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset), sort, q: debouncedSearch.trim() });
+    if (debouncedSearch.trim()) query.set('view','all');
+    else if (selection.kind === 'list') { query.set('listId', selection.id); query.set('view', 'all'); }
+    else if (selection.kind === 'tag') { query.set('tag', selection.id); query.set('view', 'all'); }
     else query.set('view', selection.id);
     return query.toString();
   }, [selection, sort, debouncedSearch]);
@@ -155,15 +169,31 @@ export default function App() {
     return () => controller.abort();
   }, [queryString, refreshKey, Boolean(bootstrap)]);
 
-  const guardChanges = () => !dirtyRef.current || window.confirm('В карточке есть несохранённые изменения. Оставить их без сохранения?');
-  const chooseSelection = (next: Selection) => {
-    if (!guardChanges()) return;
+  const guardChanges = (): Promise<boolean> => {
+    if (saving || detailLoading || pendingDecision.current) return Promise.resolve(false);
+    if (!dirtyRef.current) return Promise.resolve(true);
+    setSavePrompt(true);
+    return new Promise(resolve => { pendingDecision.current = resolve; });
+  };
+  const resolveChanges = async (choice: 'yes' | 'no' | 'cancel') => {
+    if (saving) return;
+    if (choice === 'yes' && !(await saveDraft())) return;
+    if (choice === 'no' && selected) { setDraft(draftFrom(selected)); setSaveError(''); dirtyRef.current = false; }
+    const resolve = pendingDecision.current;
+    pendingDecision.current = null; setSavePrompt(false); resolve?.(choice !== 'cancel');
+  };
+  const switchCompany = async (id: string) => {
+    if (!(await guardChanges())) return;
+    selectCompany(id); window.location.reload();
+  };
+  const chooseSelection = async (next: Selection) => {
+    if (!(await guardChanges())) return;
     setSelection(next); setSelected(null); setDraft(null); setSearch(''); setSidebarOpen(false); setTagPicker(false);
     detailRequest.current++;
   };
   const openCard = async (card: Card, skipGuard = false) => {
     if (!skipGuard && selected?.id === card.id) return;
-    if (!skipGuard && !guardChanges()) return;
+    if (!skipGuard && !(await guardChanges())) return;
     const sequence = ++detailRequest.current;
     setSelected(card); setDraft(draftFrom(card)); setSaveError(''); setConflict(false); setDetailTab('card'); setTagPicker(false); setComment(''); setCheckText('');
     setDetailLoading(true);
@@ -173,11 +203,16 @@ export default function App() {
     } catch (e) { if (sequence === detailRequest.current) setSaveError(errorText(e)); }
     finally { if (sequence === detailRequest.current) setDetailLoading(false); }
   };
-  const closeCard = () => { if (!guardChanges()) return; detailRequest.current++; setSelected(null); setDraft(null); };
+  const closeCard = async () => { if (!(await guardChanges())) return; detailRequest.current++; setSelected(null); setDraft(null); };
+  const openRelated = async (id: string) => {
+    if (!(await guardChanges())) return;
+    try { const card = await request<Card>(`/cards/${encodeURIComponent(id)}`); await openCard(card, true); }
+    catch (e) { setToast(errorText(e)); }
+  };
   const updateDraft = <K extends keyof CardDraft>(key: K, value: CardDraft[K]) => setDraft(prev => prev ? { ...prev, [key]: value } : prev);
   const reconcile = (card: Card) => {
     setCards(prev => prev.map(c => c.id === card.id ? card : c));
-    if (selectedRef.current?.id === card.id) { setSelected(card); setDraft(draftFrom(card)); }
+    if (selectedRef.current?.id === card.id) { selectedRef.current = card; dirtyRef.current = false; setSelected(card); setDraft(draftFrom(card)); }
     setRefreshKey(k => k + 1);
     loadBootstrap().catch(() => setToast('Изменения сохранены; счётчики обновятся после перезагрузки.'));
   };
@@ -198,12 +233,11 @@ export default function App() {
       return null;
     } finally { setSaving(false); }
   };
-  const toggleCard = async (card: Card, key: 'completed' | 'starred') => {
+  const toggleCard = async (card: Card, key: 'starred') => {
     if (saving || detailLoading) return;
     if (selected?.id === card.id && dirty) {
-      const saved = await saveDraft();
-      if (!saved) return;
-      card = saved;
+      if (!(await guardChanges())) return;
+      card = selectedRef.current || card;
     }
     setSaving(true);
     try { const result = await writeCard(card, { [key]: !card[key] }); reconcile(result); }
@@ -243,89 +277,108 @@ export default function App() {
   };
   const title = selection.kind === 'list' ? bootstrap?.lists.find(l => l.id === selection.id)?.name || 'Список'
     : selection.kind === 'tag' ? bootstrap?.tags.find(t => t.id === selection.id)?.name || selection.id.replace('quarter:', '')
-    : ({ all: 'Все карточки', active: 'Мои клиенты', completed: 'Завершённые', starred: 'Важное' })[selection.id];
+    : ({ all: 'Все карточки', active: 'In work', starred: 'Важное', inQuote: 'In quote', logisticsIssue: 'Logistics issue', administrativeIssue: 'Administrative issue' })[selection.id];
   const selectedList = bootstrap?.lists.find(l => l.id === (draft?.listId || selected?.listId));
-  const draftQuarter = draft ? quarterTag(draft.lastContact) : null;
+  const draftQuarter = draft ? quarterTag(draft.lastContact) || (!draft.lastContact && draft.contactQuarter ? quarterTag(`${draft.contactQuarter.slice(0,4)}-${String(Number(draft.contactQuarter.slice(-1))*3).padStart(2,'0')}-01`) : null) : null;
   const draftTags = draft ? [...(draftQuarter ? [draftQuarter] : []), ...draft.tagIds.map(id => bootstrap?.tags.find(tag => tag.id === id)).filter((tag): tag is Tag => Boolean(tag) && !tag!.id.startsWith('quarter:'))] : [];
   const ordinaryTags = bootstrap?.tags.filter(t => !t.id.startsWith('quarter:')) || [];
   const tags = bootstrap?.tags || [];
   const activeSidebar = (kind: Selection['kind'], id: string) => selection.kind === kind && selection.id === id;
-  const openCreate = () => { if (guardChanges()) setModal('card'); };
+  const openCreate = async () => { if (await guardChanges()) setModal('card'); };
+  const openCompanies = async () => { if (await guardChanges()) setModal('companies'); };
+  useEffect(() => {
+    const onSave = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); if (dirty && !savePrompt) void saveDraft(); }
+    };
+    window.addEventListener('keydown', onSave);
+    return () => window.removeEventListener('keydown', onSave);
+  });
 
   if (!bootstrap) return <div className="startup"><div className="startup-logo"><LeaderLogo /></div><h1>Leader</h1>
     {startupError ? <><p className="error-message">{startupError}</p><button className="primary-button" onClick={() => { setStartupError(''); loadBootstrap().catch(e => setStartupError(errorText(e))); }}>Попробовать снова</button></>
-      : <><LoaderCircle className="spin" size={22}/><p>Открываем ваше пространство…</p></>}
+      : <><LoaderCircle className="spin" size={22}/><p>Загрузка базы…</p></>}
   </div>;
 
   return <div className={`app-shell ${selected ? 'detail-is-open' : ''} ${sidebarOpen ? 'sidebar-is-open' : ''}`}>
     <aside className="icon-rail" aria-label="Приложение">
-      <button className="brand-mark" aria-label="Leader — все клиенты" title="Leader — все клиенты" onClick={() => chooseSelection({ kind: 'view', id: 'active' })}><LeaderLogo /></button>
+      <button className="brand-mark" aria-label="О программе Leader" title="О программе Leader" onClick={() => setModal('about')}><LeaderLogo /></button>
       <div className="rail-group">
-        <IconButton label="Клиенты" className="rail-button active" onClick={() => chooseSelection({ kind: 'view', id: 'active' })}><LayoutList size={23}/></IconButton>
+        <IconButton label="Все клиенты" className={`rail-button ${activeSidebar('view','all')?'selected-rail':''}`} onClick={() => chooseSelection({ kind: 'view', id: 'all' })}><LayoutList size={23}/></IconButton>
+        <IconButton label="In work — активные флаги" className={`rail-button ${activeSidebar('view','active')?'selected-rail':''}`} onClick={() => chooseSelection({kind:'view',id:'active'})}><span className="rail-signals"><i/><i/><i/></span></IconButton>
         <IconButton label="Важное" className={`rail-button ${activeSidebar('view', 'starred') ? 'selected-rail' : ''}`} onClick={() => chooseSelection({ kind: 'view', id: 'starred' })}><Star size={22}/></IconButton>
         <IconButton label="Поиск по карточкам" className="rail-button" onClick={() => searchRef.current?.focus()}><Search size={22}/></IconButton>
         <IconButton label="Новая карточка" className="rail-button" onClick={openCreate}><CirclePlus size={22}/></IconButton>
+        <IconButton label="Глобус клиентов" className="rail-button" onClick={()=>setModal('globe')}><Globe2 size={22}/></IconButton>
       </div>
-      <div className="rail-bottom"><IconButton label="О приложении и подключении" className="rail-button" onClick={() => setModal('about')}><CircleHelp size={21}/></IconButton><button className="rail-avatar" onClick={() => setModal('about')} aria-label="Локальное рабочее пространство">L</button></div>
+      <div className="rail-bottom"><IconButton label="Базы компаний" className="rail-button" onClick={openCompanies}><Database size={21}/></IconButton><button className="rail-avatar" onClick={() => setModal('profile')} aria-label={`Профиль: ${userName}`} title={userName}><UserRound size={22}/></button></div>
     </aside>
 
     {sidebarOpen && <button className="sidebar-scrim" aria-label="Закрыть навигацию" onClick={() => setSidebarOpen(false)}/>}
     <aside className="sidebar" aria-label="Списки и теги">
-      <div className="workspace-heading"><div><span className="brand-name">Leader<span className="brand-dot">.</span></span><span className="workspace-caption">Ваши связи. В одном месте.</span></div><IconButton label="О рабочем пространстве" onClick={() => setModal('about')}><MoreHorizontal size={19}/></IconButton></div>
+      <div className="workspace-heading"><div><span className="brand-name">Leader<span className="brand-dot">.</span></span><span className="workspace-caption">of the lead-free world</span></div><img className="leader-mascot" src="/tux-pewter.png" alt="Tux — оловянный маскот" title="Tux" width="48" height="56" draggable={false}/></div>
+      <div className="company-switcher"><Database size={15}/><select aria-label="Подключённая компания" value={bootstrap.company.id} onChange={e => switchCompany(e.target.value)} disabled={saving || detailLoading}>{bootstrap.companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select><IconButton label="Импорт и экспорт компании" onClick={openCompanies}><Settings2 size={15}/></IconButton></div>
       <nav className="smart-lists">
         <NavItem icon={<Inbox size={18}/>} label="Все карточки" count={bootstrap.stats.total} selected={activeSidebar('view', 'all')} onClick={() => chooseSelection({ kind: 'view', id: 'all' })}/>
-        <NavItem icon={<UsersRound size={18}/>} label="Мои клиенты" count={bootstrap.stats.active} selected={activeSidebar('view', 'active')} onClick={() => chooseSelection({ kind: 'view', id: 'active' })}/>
+        <NavItem icon={<UsersRound size={18}/>} label="In work" count={bootstrap.stats.active} selected={activeSidebar('view', 'active')} onClick={() => chooseSelection({ kind: 'view', id: 'active' })}/>
         <NavItem icon={<Star size={18}/>} label="Важное" count={bootstrap.stats.starred} selected={activeSidebar('view', 'starred')} onClick={() => chooseSelection({ kind: 'view', id: 'starred' })}/>
-        <NavItem icon={<CircleCheck size={18}/>} label="Завершённые" count={bootstrap.stats.completed} selected={activeSidebar('view', 'completed')} onClick={() => chooseSelection({ kind: 'view', id: 'completed' })}/>
       </nav>
       <div className="sidebar-scroll">
         <div className="section-heading"><button onClick={() => setShowLists(!showLists)} aria-expanded={showLists}>{showLists ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}<span>Мои списки</span></button><IconButton label="Создать список" onClick={() => setModal('list')}><Plus size={16}/></IconButton></div>
         {showLists && <nav className="custom-lists">{bootstrap.lists.map(list => <NavItem key={list.id} icon={<Hash size={18} style={{ color: list.color }}/>} label={list.name} count={list.count} selected={activeSidebar('list', list.id)} onClick={() => chooseSelection({ kind: 'list', id: list.id })}/>)}<button className="sidebar-add" onClick={() => setModal('list')}><Plus size={16}/>Добавить список</button></nav>}
+        <ClientGlobe selected={selected} refresh={refreshKey} onExpand={()=>setModal('globe')} onOpen={openRelated}/>
         <div className="section-heading tags-heading"><button onClick={() => setShowTags(!showTags)} aria-expanded={showTags}>{showTags ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}<span>Теги</span></button><IconButton label="Создать тег" onClick={() => setModal('tag')}><Plus size={16}/></IconButton></div>
-        {showTags && <nav className="tag-nav">{(showAllTags ? tags : tags.slice(0, 9)).map(tag => <NavItem key={tag.id} icon={<TagIcon size={16} style={{ color: tag.color }}/>} label={tag.name} count={tag.count || 0} selected={activeSidebar('tag', tag.id)} onClick={() => chooseSelection({ kind: 'tag', id: tag.id })}/>)}{tags.length > 9 && <button className="sidebar-add" onClick={() => setShowAllTags(!showAllTags)}><ChevronDown size={15} className={showAllTags ? 'rotate-180' : ''}/>{showAllTags ? 'Свернуть теги' : `Ещё ${tags.length - 9} тегов`}</button>}</nav>}
+        {showTags && <nav className="tag-nav grouped-tags">{['Страны','Время','Продукт','Стадия','Аппликация','Прочее'].map(group=><details key={group}><summary>{group}<span>{tags.filter(t=>tagCategory(t.name)===group).length}</span></summary>{tags.filter(t=>tagCategory(t.name)===group).map(tag=><NavItem key={tag.id} icon={<TagIcon size={14} style={{color:tag.color}}/>} label={tag.name} count={tag.count||0} selected={activeSidebar('tag',tag.id)} onClick={()=>chooseSelection({kind:'tag',id:tag.id})}/>)}{!tags.some(t=>tagCategory(t.name)===group)&&<small>Пока нет тегов</small>}</details>)}</nav>}
       </div>
       <div className="sidebar-footer"><span className="connection-dot"/><span>Локальное пространство</span><IconButton label="Информация о хранении и коннекторе" onClick={() => setModal('about')}><ShieldCheck size={16}/></IconButton></div>
     </aside>
 
     <main className="main-pane">
       <div className="topbar"><IconButton label="Списки и теги" className="mobile-menu" onClick={() => setSidebarOpen(!sidebarOpen)}><LayoutList size={20}/></IconButton>
-        <div className="search-box"><Search size={17}/><input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск в карточках" aria-label="Поиск в карточках"/>{search ? <IconButton label="Очистить поиск" onClick={() => setSearch('')}><X size={14}/></IconButton> : <kbd>Ctrl K</kbd>}</div>
+        <div className="search-box"><Search size={17}/><input ref={searchRef} maxLength={200} value={search} onChange={e => setSearch(e.target.value)} placeholder="Поиск во всей базе" aria-label="Поиск в карточках"/>{search ? <IconButton label="Очистить поиск" onClick={() => setSearch('')}><X size={14}/></IconButton> : <kbd>Ctrl K</kbd>}</div>
         {bootstrap.demo && <span className="demo-pill"><span/>Демо</span>}
       </div>
-      <div className="list-header"><div className="list-heading"><div className="eyebrow">РАБОЧЕЕ ПРОСТРАНСТВО</div><h1>{selection.kind === 'tag' && <TagIcon size={22}/>} {title}</h1><p>{debouncedSearch ? `Результаты поиска «${debouncedSearch}»` : selection.kind === 'view' && selection.id === 'starred' ? 'Контакты, которым стоит уделить внимание' : selection.kind === 'view' && selection.id === 'completed' ? 'Карточки с завершённой работой' : 'Следующий хороший разговор начинается здесь'}</p></div><button className="primary-button new-card-button" onClick={openCreate}><Plus size={17}/><span>Карточка</span></button></div>
-      <div className="list-toolbar"><span className="cards-count">{loading ? 'Загрузка…' : `${total.toLocaleString('ru-RU')} ${pluralCards(total)}`}</span><div className="toolbar-controls"><ArrowDownWideNarrow size={16}/><select aria-label="Сортировать карточки" value={sort} onChange={e => setSort(e.target.value)}><option value="contact">Последний контакт</option><option value="updated">Недавно изменённые</option><option value="title">По алфавиту</option></select><ChevronDown size={13}/></div></div>
+      <div className="list-header"><div className="list-heading"><div className="eyebrow">{bootstrap.company.name}</div><h1>{selection.kind === 'tag' && !debouncedSearch && <TagIcon size={22}/>} {debouncedSearch.trim()?'Поиск по базе':title}</h1>{debouncedSearch && <p>{`Результаты поиска «${debouncedSearch}»`}</p>}</div><button className="primary-button new-card-button" onClick={openCreate}><Plus size={17}/><span>Карточка</span></button></div>
+      <div className="flag-filters" aria-label="Списки по флагам">{workFlags.map(({ key, label, Icon }) => <button key={key} className={`signal-button ${key} ${activeSidebar('view', key) ? 'selected' : ''}`} aria-label={`${label}: ${bootstrap.stats[key]}`} title={label} aria-pressed={activeSidebar('view', key)} onClick={() => chooseSelection({ kind: 'view', id: key })}><Icon size={16}/>{bootstrap.stats[key] > 0 && <b className="signal-count">{bootstrap.stats[key]}</b>}</button>)}</div>
+      <div className="list-toolbar"><span className="cards-count">{loading ? 'Загрузка…' : `${total.toLocaleString('ru-RU')} ${pluralCards(total)}`}</span><div className="toolbar-controls"><ArrowDownWideNarrow size={16}/><select aria-label="Сортировать карточки" value={sort} onChange={e => setSort(e.target.value)}><option value="contact">Последний контакт</option><option value="updated">Недавно изменённые</option><option value="title">Название A–Z</option><option value="titleDesc">Название Z–A</option></select><ChevronDown size={13}/></div></div>
       <div className="cards-scroll" aria-busy={loading}>
         {loading ? <div className="skeleton-list" aria-label="Загружаем карточки">{[0,1,2,3,4,5].map(i => <div className="skeleton-row" key={i}><span className="skeleton-circle"/><div><span/><span/></div></div>)}</div>
           : listError ? <div className="empty-state"><CircleHelp size={36}/><h2>Не удалось загрузить карточки</h2><p>{listError}</p><button className="secondary-button" onClick={() => setRefreshKey(k => k + 1)}>Повторить</button></div>
-          : cards.length === 0 ? <div className="empty-state"><div className="empty-icon">{debouncedSearch ? <Search size={32}/> : <Inbox size={34}/>}</div><h2>{debouncedSearch ? 'Ничего не найдено' : 'Здесь начнётся новый контакт'}</h2><p>{debouncedSearch ? 'Попробуйте название компании, страну или имя контакта.' : 'Добавьте первую карточку и сохраните всё важное о клиенте.'}</p><button className="secondary-button" onClick={() => debouncedSearch ? setSearch('') : openCreate()}>{debouncedSearch ? 'Очистить поиск' : 'Добавить карточку'}</button></div>
-          : <><div className="card-group-heading"><ChevronDown size={13}/><span>{selection.kind === 'view' && selection.id === 'completed' ? 'Завершённые' : 'Карточки'}</span><span>{total}</span></div>
-            <div className="card-list">{cards.map(card => <div key={card.id} className={`card-row ${selected?.id === card.id ? 'selected' : ''} ${card.completed ? 'completed' : ''}`}>
-              <button className={`completion-control priority-${card.priority} ${card.completed ? 'is-checked' : ''}`} aria-label={card.completed ? `Возобновить: ${card.title}` : `Завершить: ${card.title}`} title={card.completed ? 'Вернуть в работу' : 'Завершить'} onClick={() => toggleCard(card, 'completed')} disabled={saving}>{card.completed && <Check size={13} strokeWidth={2.8}/>}</button>
+          : cards.length === 0 ? <div className="empty-state"><div className="empty-icon">{debouncedSearch ? <Search size={32}/> : <Inbox size={34}/>}</div><h2>{debouncedSearch ? 'Ничего не найдено' : 'Нет карточек'}</h2><p>{debouncedSearch ? 'Поиск по компании, стране или контакту.' : ''}</p><button className="secondary-button" onClick={() => debouncedSearch ? setSearch('') : openCreate()}>{debouncedSearch ? 'Очистить поиск' : 'Добавить карточку'}</button></div>
+          : <><div className="card-group-heading"><ChevronDown size={13}/><span>Карточки</span><span>{total}</span></div>
+            <div className="card-list">{cards.map(card => <div key={card.id} className={`card-row ${selected?.id === card.id ? 'selected' : ''}`}>
               <button className="card-row-content" onClick={() => openCard(card)} aria-label={`Открыть ${card.title}`} aria-current={selected?.id === card.id ? 'true' : undefined}>
                 <div className="card-title-line"><span className="card-title">{card.title}</span>{card.priority === 3 && <Flag size={12} className="high-priority" fill="currentColor"/>}</div>
-                <div className="card-subtitle">{card.country && <span>{card.country}</span>}{card.country && card.contactName && <span className="subtitle-dot">·</span>}{card.contactName && <span>{card.contactName}</span>}{!card.country && !card.contactName && <span>{card.company || 'Добавьте информацию о клиенте'}</span>}</div>
+                <div className="card-subtitle">{card.country && <span>{[card.country,card.secondaryCountry].filter(Boolean).join(' / ')}</span>}{card.country && card.contactName && <span className="subtitle-dot">·</span>}{card.contactName && <span>{card.contactName}</span>}{!card.country && !card.contactName && <span>{card.company || 'Добавьте информацию о клиенте'}</span>}</div>
                 <div className="row-tags">{card.tags.slice(0, 3).map(tag => <Badge tag={tag} key={tag.id}/>)}{card.tags.length > 3 && <span className="more-tags">+{card.tags.length - 3}</span>}{card.checklist.length > 0 && <span className="checklist-count"><CheckCheck size={12}/>{card.checklist.filter(c => c.done).length}/{card.checklist.length}</span>}</div>
+                <div className="row-flags">{workFlags.filter(flag => card.flags[flag.key].active).map(({ key, label, Icon }) => <span className={`row-attention ${key}`} key={key} title={`${label}: ${card.flags[key].comment}`}><span className={`signal-button signal-badge ${key} selected`} aria-label={label}><Icon size={11}/></span><span className="flag-comment-preview">{card.flags[key].comment || label}</span><time>{card.flags[key].activatedAt?formatDate(card.flags[key].activatedAt,true):'Дата не известна'}</time></span>)}</div>
               </button>
-              <div className="card-trailing"><button className={`row-star ${card.starred ? 'is-starred' : ''}`} aria-label={card.starred ? `Убрать из важного: ${card.title}` : `В важное: ${card.title}`} title={card.starred ? 'Убрать из важного' : 'В важное'} onClick={() => toggleCard(card, 'starred')} disabled={saving}><Star size={15} fill={card.starred ? 'currentColor' : 'none'}/></button><span className="contact-date" title={card.lastContact ? `Последний контакт: ${formatDate(card.lastContact, true)}` : 'Дата контакта не указана'}>{formatDate(card.lastContact) || '—'}</span></div>
+              <div className="card-trailing"><button className={`row-star ${card.starred ? 'is-starred' : ''}`} aria-label={card.starred ? `Убрать из важного: ${card.title}` : `В важное: ${card.title}`} title={card.starred ? 'Убрать из важного' : 'В важное'} onClick={() => toggleCard(card, 'starred')} disabled={saving}><Star size={15} fill={card.starred ? 'currentColor' : 'none'}/></button>{card.starred&&<time className="starred-date" title="Добавлено в важное">★ {card.starredAt?formatDate(card.starredAt,true):'Дата не известна'}</time>}<span className="contact-date" title={card.lastContact ? `Последний контакт: ${formatDate(card.lastContact, true)}` : 'Дата контакта не указана'}><Clock3 size={10}/> {formatDate(card.lastContact) || '—'}</span></div>
             </div>)}</div>
             {cards.length < total && <button className="load-more" onClick={loadMore} disabled={loadingMore}>{loadingMore ? <LoaderCircle className="spin" size={16}/> : <ChevronDown size={16}/>}Показать ещё · {Math.min(PAGE_SIZE, total - cards.length)}</button>}
-            <div className="list-end"><span/>{cards.length < total ? `Показано ${cards.length} из ${total}` : 'Всё под рукой'}<span/></div>
+            <div className="list-end"><span/>{`Показано ${cards.length} из ${total}`}<span/></div>
           </>}
       </div>
       <div className="main-footer"><span><ShieldCheck size={13}/>Сохранено на этом компьютере</span><span>Leader</span></div>
     </main>
 
     {selected && draft ? <aside className="detail-pane" aria-label="Карточка клиента">
-      <div className="detail-topbar"><div className="detail-topbar-left"><button className={`completion-control ${selected.completed ? 'is-checked' : ''}`} onClick={() => toggleCard(selected, 'completed')} aria-label={selected.completed ? 'Вернуть в работу' : 'Завершить карточку'} disabled={saving || detailLoading}>{selected.completed && <Check size={13}/>}</button><span>{selected.completed ? 'Завершена' : 'В работе'}</span></div><div className="detail-topbar-actions"><IconButton label={selected.starred ? 'Убрать из важного' : 'Добавить в важное'} className={selected.starred ? 'is-starred' : ''} onClick={() => toggleCard(selected, 'starred')} disabled={saving || detailLoading}><Star size={17} fill={selected.starred ? 'currentColor' : 'none'}/></IconButton><IconButton label="Архивировать карточку" onClick={archiveCard} disabled={saving || detailLoading}><Archive size={17}/></IconButton><span className="toolbar-divider"/><IconButton label="Закрыть карточку" onClick={closeCard}><X size={19}/></IconButton></div></div>
+      <div className="detail-topbar"><button className="primary-button save-button" onClick={() => saveDraft()} disabled={!dirty || saving || detailLoading}><Save size={15}/>Save</button><div className="detail-topbar-actions">
+        <div className="traffic-lights" aria-label="Флаги карточки">{workFlags.map(({ key, label, Icon }) => <button key={key} role="checkbox" className={`signal-button ${key} ${draft.flags[key].active ? 'selected' : ''}`} aria-label={`Флаг ${label}`} title={label} aria-checked={draft.flags[key].active} onClick={() => updateDraft('flags', { ...draft.flags, [key]: { ...draft.flags[key], active: !draft.flags[key].active } })} disabled={saving || detailLoading}><Icon size={16}/></button>)}</div>
+        <span className="toolbar-divider"/><IconButton label="Закрыть карточку" onClick={closeCard}><X size={19}/></IconButton>
+      </div></div>
       <div className="detail-scroll">
+        {workFlags.some(({ key }) => draft.flags[key].active) && <div className="card-work-flags" aria-label="Комментарии флагов">
+          {workFlags.filter(({ key }) => draft.flags[key].active).map(({ key, label }) => <div className={`signal-comment ${key}`} key={key}><span className="signal-dot"/><input className="flag-comment" aria-label={`Комментарий ${label}`} title={label} placeholder="…" maxLength={300} value={draft.flags[key].comment} onChange={e => updateDraft('flags', { ...draft.flags, [key]: { ...draft.flags[key], comment: e.target.value } })} disabled={saving || detailLoading}/></div>)}
+        </div>}
         <div className="detail-list-select"><Hash size={15} style={{ color: selectedList?.color }}/><select aria-label="Список карточки" value={draft.listId} onChange={e => updateDraft('listId', e.target.value)} disabled={detailLoading}>{bootstrap.lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select><ChevronDown size={13}/>{detailLoading && <LoaderCircle className="spin" size={14}/>}</div>
         <textarea className="detail-title" rows={2} value={draft.title} onChange={e => updateDraft('title', e.target.value)} aria-label="Название карточки" placeholder="Название компании" disabled={detailLoading}/>
-        <div className="detail-tag-row">{draftTags.map(tag => <Badge key={tag.id} tag={tag}/>)}<button className={`add-tag-button ${tagPicker ? 'active' : ''}`} aria-label="Изменить теги" onClick={() => setTagPicker(!tagPicker)} disabled={detailLoading}><Plus size={13}/>{draftTags.length === 0 ? 'Добавить теги' : ''}</button></div>
+        <div className="detail-tag-row">{draftTags.map(tag => <span className="removable-tag" key={tag.id}><Badge tag={tag}/><button aria-label={`Убрать тег ${tag.name}`} title={tag.id.startsWith('quarter:')?'Очистить дату и квартал контакта':'Убрать из карточки'} disabled={detailLoading} onClick={()=>{if(tag.id.startsWith('quarter:')){setDraft(d=>d?{...d,lastContact:'',contactQuarter:null}:d);setToast('Дата и квартал очищены в черновике. Нажмите Save.');}else updateDraft('tagIds',draft.tagIds.filter(id=>id!==tag.id));}}><X size={11}/></button></span>)}<button className={`add-tag-button ${tagPicker ? 'active' : ''}`} aria-label="Изменить теги" onClick={() => setTagPicker(!tagPicker)} disabled={detailLoading}><Plus size={13}/>{draftTags.length === 0 ? 'Добавить теги' : ''}</button></div>
         {tagPicker && <div className="tag-picker"><span className="picker-heading">Теги карточки</span>{ordinaryTags.length ? ordinaryTags.map(tag => <label key={tag.id}><input type="checkbox" checked={draft.tagIds.includes(tag.id)} onChange={e => updateDraft('tagIds', e.target.checked ? [...draft.tagIds, tag.id] : draft.tagIds.filter(id => id !== tag.id))}/><TagIcon size={14} style={{ color: tag.color }}/>{tag.name}</label>) : <p>Создайте первый тег, чтобы объединять карточки.</p>}<button className="text-button" onClick={() => setModal('tag')}><Plus size={14}/>Создать тег</button><div className="picker-note">Тег квартала появится автоматически из даты последнего контакта.</div></div>}
         <div className="detail-tabs"><button className={detailTab === 'card' ? 'active' : ''} onClick={() => setDetailTab('card')}>Карточка</button><button className={detailTab === 'activity' ? 'active' : ''} onClick={() => setDetailTab('activity')}>История<span>{selected.activity.length}</span></button></div>
         {detailTab === 'card' ? <div className="detail-card-content">
           <div className="properties">
-            <Property icon={<Globe2 size={15}/>} label="Страна"><input value={draft.country} onChange={e => updateDraft('country', e.target.value)} placeholder="Не указана" aria-label="Страна клиента" disabled={detailLoading}/></Property>
+            <Property icon={<Globe2 size={15}/>} label="Страна"><input list="country-options" value={draft.country} onChange={e => updateDraft('country', e.target.value)} placeholder="Не указана" aria-label="Страна клиента" disabled={detailLoading}/></Property>
+            <Property icon={<Globe2 size={15}/>} label="Вторая страна"><input list="country-options" value={draft.secondaryCountry} onChange={e => updateDraft('secondaryCountry', e.target.value)} placeholder="Необязательно" aria-label="Вторая страна клиента" disabled={detailLoading}/></Property>
             <Property icon={<UserRound size={15}/>} label="Контакт"><input value={draft.contactName} onChange={e => updateDraft('contactName', e.target.value)} placeholder="Имя и фамилия" aria-label="Контактное лицо" disabled={detailLoading}/></Property>
             <Property icon={<Mail size={15}/>} label="Почта"><input type="email" value={draft.email} onChange={e => updateDraft('email', e.target.value)} placeholder="name@company.com" aria-label="Электронная почта" disabled={detailLoading}/></Property>
             <Property icon={<Circle size={15}/>} label="Этап"><div className="status-select" style={{ '--status-color': statuses.find(s => s.value === draft.status)?.color } as CSSProperties}><span/><select value={draft.status} onChange={e => updateDraft('status', e.target.value as LeadStatus)} aria-label="Этап работы" disabled={detailLoading}>{statuses.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div></Property>
@@ -333,6 +386,7 @@ export default function App() {
             <Property icon={<Clock3 size={15}/>} label="Контакт был"><input type="date" value={draft.lastContact} onChange={e => updateDraft('lastContact', e.target.value)} aria-label="Дата последнего контакта" disabled={detailLoading}/></Property>
             <Property icon={<CalendarDays size={15}/>} label="Следующий шаг"><input type="date" value={draft.dueDate} onChange={e => updateDraft('dueDate', e.target.value)} aria-label="Дата следующего шага" disabled={detailLoading}/></Property>
           </div>
+          <Relationships key={selected.id} card={selected} accountType={draft.accountType} distributorIds={draft.distributorIds} disabled={saving || detailLoading} onType={type => updateDraft('accountType', type)} onLinks={ids => updateDraft('distributorIds', ids)} onOpen={openRelated}/>
           <section className="detail-section"><h3>О клиенте</h3><textarea className="description-input" value={draft.description} onChange={e => updateDraft('description', e.target.value)} placeholder="Что важно знать о компании, задачах и договорённостях…" aria-label="Описание клиента" rows={5} disabled={detailLoading}/></section>
           <section className="detail-section checklist-section"><div className="detail-section-heading"><h3>Следующие шаги</h3><span>{draft.checklist.filter(item => item.done).length} / {draft.checklist.length}</span></div>
             {draft.checklist.length > 0 && <div className="checklist-progress"><span style={{ width: `${draft.checklist.filter(item => item.done).length / draft.checklist.length * 100}%` }}/></div>}
@@ -344,19 +398,25 @@ export default function App() {
           <form className="comment-form" onSubmit={addComment}><textarea aria-label="Новая заметка" placeholder="Как прошёл разговор?" value={comment} onChange={e => setComment(e.target.value)} rows={3}/><button type="submit" className="primary-button" disabled={!comment.trim() || saving || detailLoading}>{saving ? <LoaderCircle size={14} className="spin"/> : <Plus size={14}/>}Добавить заметку</button></form>
         </div>}
       </div>
-      {saveError && <div className="save-error" role="alert">{saveError}{conflict && <button onClick={() => { if (guardChanges()) openCard(selected, true); }}>Загрузить актуальную версию</button>}</div>}
+      {saveError && <div className="save-error" role="alert">{saveError}{conflict && <button onClick={async () => { if (await guardChanges()) openCard(selected, true); }}>Загрузить актуальную версию</button>}</div>}
       <div className={`detail-footer ${dirty ? 'has-changes' : ''}`}>{dirty ? <><span><span className="unsaved-dot"/>Есть изменения</span><div><button className="text-button" onClick={() => { setDraft(draftFrom(selected)); setSaveError(''); setConflict(false); }} disabled={saving}>Отменить</button><button className="primary-button" onClick={() => saveDraft()} disabled={saving || detailLoading}>{saving ? <LoaderCircle className="spin" size={14}/> : <Check size={14}/>}Сохранить</button></div></> : <><span><CheckCheck size={14}/>Все изменения сохранены</span><span className="revision" title={`Версия карточки ${selected.version}`}>v{selected.version}</span></>}</div>
-    </aside> : <aside className="detail-placeholder"><div className="placeholder-art"><div className="art-card art-card-back"/><div className="art-card"><span className="art-check"><Check size={18}/></span><span className="art-line long"/><span className="art-line"/><span className="art-tag"/><span className="art-tag second"/></div><span className="art-spark one">+</span><span className="art-spark two">+</span></div><h2>Каждый контакт — возможность</h2><p>Выберите карточку, чтобы увидеть<br/>детали и запланировать следующий шаг.</p><span className="placeholder-shortcut"><Search size={13}/><kbd>Ctrl K</kbd> для быстрого поиска</span></aside>}
+    </aside> : <aside className="detail-placeholder"><LayoutList size={34}/><h2>Выберите карточку</h2></aside>}
+
+    {savePrompt && <Modal title="Save Changes?" onClose={() => { if (!saving) void resolveChanges('cancel'); }}><p className="form-intro">{draft?.title}</p>{saveError && <p className="error-message" role="alert">{saveError}</p>}<div className="modal-actions"><button className="primary-button" disabled={saving} onClick={() => resolveChanges('yes')}>{saving && <LoaderCircle className="spin" size={14}/>}Yes</button><button className="secondary-button" disabled={saving} onClick={() => resolveChanges('no')}>No</button><button className="secondary-button" disabled={saving} onClick={() => resolveChanges('cancel')}>Cancel</button></div></Modal>}
+    <datalist id="country-options">{countryNames.map(name=><option key={name} value={name}/>)}</datalist>
+    {modal==='globe'&&<Modal title={`География · ${bootstrap.company.name}`} className="globe-modal" onClose={()=>setModal(null)}><ClientGlobe expanded selected={selected} refresh={refreshKey} onOpen={async id=>{setModal(null);await openRelated(id);}}/></Modal>}
+    {modal==='profile'&&<Modal title="Локальный пользователь" onClose={()=>setModal(null)}><form className="create-form" onSubmit={e=>{e.preventDefault();const name=userName.trim()||'Local user';setUserName(name);localStorage.setItem('leader.userName',name);setModal(null);}}><label>Отображаемое имя<input value={userName} maxLength={80} onChange={e=>setUserName(e.target.value)}/></label><p>Локальный профиль этого браузера. Вход в облачный аккаунт пока не используется.</p><button className="primary-button">Сохранить</button></form></Modal>}
+    {modal === 'companies' && <CompaniesModal bootstrap={bootstrap} onClose={() => setModal(null)} onChanged={()=>loadBootstrap()} onConnected={company => switchCompany(company.id)}/>}
 
     {modal === 'archive' && selected && <Modal title="Переместить в архив?" onClose={() => setModal(null)}><p>Карточка «{selected.title}» сохранится в локальной базе. Восстановить её можно через коннектор.</p>{dirty && <p className="error-message">Несохранённые изменения в карточке будут отброшены.</p>}<div className="modal-actions"><button className="secondary-button" onClick={() => setModal(null)}>Отмена</button><button className="primary-button" onClick={archiveCard}>В архив</button></div></Modal>}
     {modal === 'card' && <CreateCardModal lists={bootstrap.lists} initialList={selection.kind === 'list' ? selection.id : bootstrap.lists[0]?.id || ''} token={bootstrap.csrfToken} onClose={() => setModal(null)} onCreated={card => { setModal(null); setSelection({ kind: 'list', id: card.listId }); setSearch(''); setRefreshKey(k => k + 1); loadBootstrap().catch(() => {}); openCard(card, true); setToast('Новая карточка создана'); }}/>}
     {(modal === 'list' || modal === 'tag') && <CreateLabelModal kind={modal} token={bootstrap.csrfToken} onClose={() => setModal(null)} onCreated={item => { const kind = modal; setModal(null); loadBootstrap().catch(() => {}); setToast(kind === 'list' ? 'Список создан' : 'Тег создан'); if (kind === 'list') chooseSelection({ kind: 'list', id: item.id }); else if (draft) updateDraft('tagIds', [...draft.tagIds, item.id]); }}/>}
-    {modal === 'about' && <Modal title="Ваше пространство Leader" onClose={() => setModal(null)} className="about-modal"><div className="about-brand"><div className="about-logo"><LeaderLogo /></div><div><strong>Leader<span>.</span></strong><p>Больше внимания вашим связям.</p></div></div><div className="about-info"><ShieldCheck size={21}/><div><h3>Локально на вашем компьютере</h3><p>Карточки хранятся в SQLite. Изменения остаются после закрытия браузера и перезапуска приложения.</p></div></div><div className="about-info"><LayoutList size={21}/><div><h3>Большие списки, спокойный интерфейс</h3><p>Карточки загружаются порциями по 100. Поиск, фильтры и сортировка выполняются в локальной базе.</p></div></div><div className="about-info"><Settings2 size={21}/><div><h3>Готово для локального MCP</h3><p>Коннектор использует ту же базу и проверку версий, что и интерфейс. Подключение описано в README проекта.</p></div></div>{bootstrap.demo && <div className="demo-notice">Вы работаете с демонстрационными компаниями. Все названия и контакты вымышлены.</div>}<button className="primary-button about-close" onClick={() => setModal(null)}>Продолжить работу</button></Modal>}
+    {modal === 'about' && <Modal title="О программе Leader" onClose={() => setModal(null)} className="about-modal"><div className="about-brand"><div className="about-logo"><LeaderLogo /></div><div><strong>Leader<span>.</span></strong><p>of the lead-free world</p></div></div><dl className="about-version"><dt>Версия</dt><dd>0.2.0 · локальный прототип</dd><dt>Концепция и продукт</dt><dd>По вашему техническому заданию</dd><dt>Разработка</dt><dd>Совместно с OpenAI Codex</dd></dl><div className="about-info"><Database size={21}/><div><h3>{bootstrap.company.name}</h3><p>У каждой подключённой компании отдельная база карточек, списков, тегов и истории.</p></div></div>{bootstrap.demo && <div className="demo-notice">Демонстрационные компании и контакты вымышлены.</div>}<button className="primary-button about-close" onClick={() => setModal(null)}>Закрыть</button></Modal>}
     {toast && <div className="toast" role="status"><Check size={16}/><span>{toast}</span><IconButton label="Скрыть уведомление" onClick={() => setToast('')}><X size={14}/></IconButton></div>}
   </div>;
 }
 
-function LeaderLogo() { return <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M10 8v20h18v-5H15V8z" fill="currentColor"/><circle cx="25.5" cy="10.5" r="4.5" fill="currentColor" opacity=".55"/></svg>; }
+function LeaderLogo() { return <img className="leader-logo" src="/leader-chip.svg?v=mono-three" alt="" aria-hidden="true"/>; }
 function pluralCards(count: number) { const last = count % 10, lastTwo = count % 100; return last === 1 && lastTwo !== 11 ? 'карточка' : last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? 'карточки' : 'карточек'; }
 function NavItem({ icon, label, count, selected, onClick }: { icon: ReactNode; label: string; count: number; selected: boolean; onClick: () => void }) {
   return <button className={`nav-item ${selected ? 'selected' : ''}`} onClick={onClick} title={label} aria-current={selected ? 'page' : undefined}>{icon}<span>{label}</span><span className="nav-count">{count > 0 ? count.toLocaleString('ru-RU') : ''}</span></button>;
@@ -371,7 +431,58 @@ function CreateCardModal({ lists, initialList, token, onClose, onCreated }: { li
     try { const card = await request<Card>('/cards', { method: 'POST', token, body: { title: title.trim(), company: title.trim(), listId, country: country.trim(), lastContact, status: 'lead' } }); onCreated(card); }
     catch (e) { setError(errorText(e)); setBusy(false); }
   };
-  return <Modal title="Новая карточка" onClose={() => { if (!busy) onClose(); }}><form onSubmit={submit} className="create-form"><p className="form-intro">Начните с главного. Детали можно добавить позже.</p><label>Компания или название<input autoFocus required maxLength={240} placeholder="Например, Northwind Robotics" value={title} onChange={e => setTitle(e.target.value)}/></label><label>Список<select value={listId} onChange={e => setListId(e.target.value)} required>{lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label><div className="form-two-columns"><label>Основная страна<input placeholder="Например, Германия" value={country} onChange={e => setCountry(e.target.value)}/></label><label>Последний контакт<input type="date" value={lastContact} onChange={e => setLastContact(e.target.value)}/></label></div>{lastContact && <div className="form-hint"><Badge tag={quarterTag(lastContact)!}/>Тег квартала добавится автоматически</div>}{error && <p className="error-message" role="alert">{error}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Отмена</button><button className="primary-button" type="submit" disabled={busy || !title.trim() || !listId}>{busy ? <LoaderCircle size={15} className="spin"/> : <Plus size={15}/>}Создать карточку</button></div></form></Modal>;
+  return <Modal title="Новая карточка" onClose={() => { if (!busy) onClose(); }}><form onSubmit={submit} className="create-form"><label>Компания или название<input autoFocus required maxLength={240} placeholder="Название компании" value={title} onChange={e => setTitle(e.target.value)}/></label><label>Список<select value={listId} onChange={e => setListId(e.target.value)} required>{lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select></label><div className="form-two-columns"><label>Основная страна<input placeholder="Страна" value={country} onChange={e => setCountry(e.target.value)}/></label><label>Последний контакт<input type="date" value={lastContact} onChange={e => setLastContact(e.target.value)}/></label></div>{lastContact && <div className="form-hint"><Badge tag={quarterTag(lastContact)!}/>Тег квартала добавится автоматически</div>}{error && <p className="error-message" role="alert">{error}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Отмена</button><button className="primary-button" type="submit" disabled={busy || !title.trim() || !listId}>{busy ? <LoaderCircle size={15} className="spin"/> : <Plus size={15}/>}Создать карточку</button></div></form></Modal>;
+}
+
+function CompaniesModal({ bootstrap, onClose, onConnected,onChanged }: { bootstrap: Bootstrap; onClose: () => void; onConnected: (company: CompanyDatabase) => void;onChanged:()=>Promise<unknown> }) {
+  const [name, setName] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [bundle, setBundle] = useState<{ format: string; version: number; company?: CompanyDatabase; cards: unknown[]; lists: unknown[]; tags: unknown[] } | null>(null);
+  const [disconnect,setDisconnect]=useState<CompanyDatabase|null>(null);
+  const [disconnected,setDisconnected]=useState<CompanyDatabase[]>([]);
+  const refreshDisconnected=()=>request<{companies:CompanyDatabase[]}>('/companies/disconnected').then(data=>setDisconnected(data.companies));
+  useEffect(()=>{refreshDisconnected().catch(e=>setError(errorText(e)));},[]);
+  const remove=async()=>{if(!disconnect)return;setBusy(true);setError('');try{await request(`/companies/${disconnect.id}/disconnect`,{method:'POST',body:{},token:bootstrap.csrfToken});if(disconnect.id===bootstrap.company.id){const next=bootstrap.companies.find(c=>c.id!==disconnect.id)!;selectCompany(next.id);window.location.reload();return;}setDisconnect(null);await onChanged();await refreshDisconnected();}catch(e){setError(errorText(e));}finally{setBusy(false);}};
+  const restore=async(id:string)=>{setBusy(true);try{await request(`/companies/${id}/reconnect`,{method:'POST',body:{},token:bootstrap.csrfToken});await onChanged();await refreshDisconnected();}catch(e){setError(errorText(e));}finally{setBusy(false);}};
+  const connect = async (event: FormEvent) => {
+    event.preventDefault(); if (!name.trim() || busy) return;
+    setBusy(true); setError('');
+    try {
+      const company = await request<CompanyDatabase>(bundle ? '/companies/import' : '/companies', { method: 'POST', token: bootstrap.csrfToken, body: bundle ? { name: name.trim(), bundle } : { name: name.trim() } });
+      onConnected(company);
+    } catch (e) { setError(errorText(e)); setBusy(false); }
+  };
+  const exportCompany = async () => {
+    setBusy(true); setError('');
+    try {
+      const data = await request(`/companies/${bootstrap.company.id}/export`);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `Leader-${bootstrap.company.name.replace(/[^\p{L}\p{N} _-]/gu, '_')}.json`;
+      document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) { setError(errorText(e)); }
+    finally { setBusy(false); }
+  };
+  return <Modal title="Базы компаний" onClose={() => { if (!busy) onClose(); }} className="companies-modal">
+    <div className="connected-companies">{bootstrap.companies.map(company => <div className={`company-row ${company.id===bootstrap.company.id?'current':''}`} key={company.id}><button disabled={busy} onClick={() => onConnected(company)}><Database size={16}/><span>{company.name}</span>{company.id === bootstrap.company.id && <Check size={15}/>}</button><IconButton label={`Убрать базу ${company.name} из списка`} disabled={busy||bootstrap.companies.length<=1} onClick={()=>setDisconnect(company)}><Trash2 size={15}/></IconButton></div>)}</div>
+    {disconnect&&<div className="disconnect-confirm" role="alert"><strong>Убрать {disconnect.name} из списка?</strong><p>Файл базы и карточки останутся на компьютере. Базу можно подключить обратно ниже.</p><button className="secondary-button" disabled={busy} onClick={()=>setDisconnect(null)}>Отмена</button> <button className="primary-button" disabled={busy} onClick={remove}>Убрать из списка</button></div>}
+    {disconnected.length>0&&<details className="disconnected-companies"><summary>Отключённые базы · {disconnected.length}</summary>{disconnected.map(c=><div key={c.id}><span>{c.name}</span><button className="text-button" disabled={busy} onClick={()=>restore(c.id)}>Подключить обратно</button></div>)}</details>}
+    <button className="secondary-button export-company" disabled={busy} onClick={exportCompany}><Download size={16}/>Экспорт {bootstrap.company.name}</button>
+    <form className="create-form company-form" onSubmit={connect}>
+      <label className="import-file"><span><Upload size={16}/>Подключить из файла Leader JSON</span><input type="file" accept=".json,application/json" disabled={busy} onChange={async e => {
+        const file = e.target.files?.[0]; if (!file) return; setError('');
+        try {
+          if (file.size > 128 * 1024 * 1024) throw new Error('Максимальный размер файла — 128 МБ.');
+          const data = JSON.parse(await file.text());
+          if (data.format !== 'leader-company' || data.version !== 1 || !Array.isArray(data.cards) || !Array.isArray(data.lists) || !Array.isArray(data.tags)) throw new Error('Выберите экспорт базы Leader.');
+          setBundle(data); const originalName = data.company?.name || 'Импорт';
+          setName(bootstrap.companies.some(company => company.name.toLowerCase() === originalName.toLowerCase()) ? `${originalName} (import)` : originalName);
+        } catch (e) { setBundle(null); setError(errorText(e)); }
+      }}/></label>
+      {bundle && <div className="import-preview">{bundle.cards.length.toLocaleString('ru-RU')} карточек · {bundle.lists.length} списков · {bundle.tags.length} тегов<button type="button" className="text-button" onClick={() => { setBundle(null); setName(''); }}>Отменить выбор файла</button></div>}
+      <label>{bundle ? 'Название подключаемой компании' : 'Новая компания'}<input value={name} onChange={e => setName(e.target.value)} required maxLength={100} placeholder="Название компании" disabled={busy}/></label>
+      {error && <p className="error-message" role="alert">{error}</p>}
+      <div className="modal-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Закрыть</button><button className="primary-button" disabled={busy || !name.trim()}>{busy && <LoaderCircle className="spin" size={14}/>} {bundle ? 'Импортировать и подключить' : 'Создать базу'}</button></div>
+    </form>
+  </Modal>;
 }
 function CreateLabelModal({ kind, token, onClose, onCreated }: { kind: 'list' | 'tag'; token: string; onClose: () => void; onCreated: (item: ClientList | Tag) => void }) {
   const [name, setName] = useState(''), [color, setColor] = useState(palette[0]), [busy, setBusy] = useState(false), [error, setError] = useState('');

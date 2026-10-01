@@ -117,7 +117,7 @@ test('filters, unicode search, literal wildcard search and reversible archive ag
   assert.equal(store.listCards({ q: 'сЕвЕр' }).total, 1);
   assert.equal(store.listCards({ q: '%' }).total, 1);
   assert.equal(store.listCards({ q: 'германия' }).total, 1);
-  assert.equal(store.listCards({ view: 'active' }).total, 1);
+  assert.equal(store.listCards({ view: 'active' }).total, 0, 'Only active attention flags put a company in work');
   assert.equal(store.listCards({ view: 'completed' }).total, 1);
   assert.equal(store.listCards({ view: 'starred' }).items[0].id, card.id);
   assert.equal(store.listCards({ tag: 'quarter:2026-3' }).items[0].id, card.id);

@@ -1,0 +1,7 @@
+# Leader mascot
+
+Asset: `public/tux-pewter.png`, 1254 × 1254, transparent PNG. Created with the built-in image generation tool using the imagegen skill, not the CLI. Alpha transparency verified. The Linux Tux mascot is rendered as an unpainted pewter playing token, as requested by the user. The UI shows the asset at 48 × 56 CSS pixels, with object-fit: contain.
+
+## Generation prompt
+
+Use case: stylized-concept. Asset type: small transparent mascot for a desktop app header, displayed next to the word Leader. Primary request: the recognizable Linux penguin Tux reimagined as a three-dimensional cast-pewter Monopoly-style playing token. A single seated, friendly, round-bellied Tux with splayed feet, small beak, flippers resting at its sides, full body visible. Entire figure is unpainted silver tin/pewter including feet, belly and beak, with dark recessed details and bright metallic edge highlights; not black/white/yellow plastic. Photorealistic miniature product render, slightly three-quarter front view, nearly frontal for a clear silhouette at 48 pixels tall, premium soft studio lighting, subtle realistic brushed/cast metal texture, no excessive fine detail. Centered on a square canvas with minimal transparent margins, subject occupies 90% of the image height. Genuine transparent alpha background, no floor, no pedestal, no scenery, no other objects, no text, no watermark, no board, no logos.

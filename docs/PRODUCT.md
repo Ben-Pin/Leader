@@ -9,7 +9,14 @@ An independent local client-card application for Windows, usable in a browser, v
 - Three-pane layout: icon rail and lists/tags, task-style card list, editable details.
 - Russian UI. Blue accent, pale sidebar, white work area, fine separators, compact row typography.
 - Several fictional companies with country, contact, description, checklist, and contact history.
-- Create/edit/search/move cards; toggle completion and star; set priority and lead stage.
+- Create/edit/search/move cards; star, priority and lead stage. Company names are never struck through as completed tasks.
+- Branding: Leader, with the exact subtitle `of the lead-free world`; no motivational copy. Following the user's sketch, a blue L forms the left and bottom edges of a pinned chip; a glowing yellow sun-dot sits at the upper right and shines toward the L. One shared SVG is used throughout the UI and as the favicon.
+- A small three-dimensional pewter Tux playing-token mascot sits to the right of Leader in the sidebar heading. The transparent PNG is stored locally; company management remains available beside the company selector.
+- Connected company databases: Demo, Clab (mail-derived clients), BrothersInArms. Each has independent cards, lists, tags and history; switch in the sidebar. Full JSON export and import as a new company.
+- Independent flags: green `$` In quote (awaiting a reply to pricing), yellow Logistics issue, red Administrative issue. Compact circular controls sit in one horizontal row, without visible text labels (names remain in tooltips and accessibility labels). Each control acts as a checkbox: click to enable or clear, commit with Save. Active flags show a 300-character single-line comment; clearing hides but preserves the comment. List filters use matching round controls with nonzero count badges.
+- In work contains cards without active flags. Each flag has a top filter/list; multiple flags put a card in multiple lists. Original custom-list membership is retained.
+- Save is always visible in the card header. Leaving an edited card or switching company prompts `Save Changes?` with Yes / No / Cancel. Ctrl+S saves. Browser-tab closing retains the browser's native unsaved-changes warning, whose text/buttons cannot be replaced by a web page.
+- Card header contains Save, the three round attention flags and Close. Star and archive buttons are removed from this header; the flag row is not duplicated in the card body. Active-flag comments remain below the header.
 - Create lists and color tags. Filter by list and tag; sort by recent contact or title.
 - Derive YYYY-Q tag from last contact. Display it first. 2026 bright green, 2025 muted green, 2024 amber, 2023 and older red.
 - Persist data in local SQLite. Refreshing or restarting must preserve edits.

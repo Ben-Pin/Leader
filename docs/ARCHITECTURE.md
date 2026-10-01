@@ -13,11 +13,17 @@ Browser -> HTTP -> shared service -> SQLite <- shared service <- MCP <- agent.
 
 ## Data
 
-Tables: lists, cards, tags, card_tags, checklist_items, activity. Stable random IDs. Cards have title, description, country, company, contactName, email, lastContact, dueDate, status, priority, completed, starred, archived, version, createdAt, updatedAt. Tags are ordered; quarter tag is derived by the service and prepended in responses.
+Tables: lists, cards, tags, card_tags, checklist_items, activity, card_flags. Stable random IDs. Cards retain legacy completed for export compatibility, but the UI uses independent inQuote/logisticsIssue/administrativeIssue flags instead. Each flag has active and a single-line comment; flag writes participate in the same card revision and transaction.
+
+Company registry: `data/companies.sqlite`. The legacy `data/leader.sqlite` remains connected as Demo, preserving existing edits. Clab and BrothersInArms use their own files under `data/companies/`. Additional companies use generated UUID filenames; imports never choose a filesystem path. HTTP selects a company per request with X-Leader-Company; MCP requires companyId per operation. There is no process-global active company, so two windows/agents cannot redirect each other's writes.
+
+Portable format `leader-company`, version 1: named company metadata, all lists, custom tags and all cards (including archived), IDs, versions, dates, checklist, flags and history. Import creates a fresh company database and validates/restores in a single transaction. Existing company names/databases are not overwritten. Limit: 128 MB per HTTP import, 100,000 cards per package. Failed imports are not registered.
 
 Optimistic concurrency: PATCH must include expected `version`. Concurrent stale updates return conflict. All multi-table changes are transactional. Soft archive is reversible.
 
 ## Scale
+
+Additive schema v4 adds `account_type`, `contact_quarter`, and `card_distributors`. Client-to-partner links use foreign keys, shared role/cycle validation and card revisions. Reverse client lists are derived and paginated. Portable import creates all endpoints before links; invalid links roll back the entire import. Migration batches use stable source IDs and the same service transaction layer; private migration inputs/reports remain outside the repository.
 
 Page sizes: default 100, maximum 200. Filter and search happen server-side; the browser never loads 10,000 cards just to show one page. Count summaries come from SQL. Validate 10,000 inserts and bounded list/search queries in a disposable database and report actual measurements.
 
