@@ -38,3 +38,5 @@ First deliver a tested local stdio MCP server. The plugin package points to its 
 ## Later milestones
 
 Import preview with deduplication/provenance; managed backup/restore; stronger full-text search; bulk edits; optional calendar and board modes; opt-in remote access; Windows packaging.
+
+Globe queries and card pagination share one SQL filter builder. Geography aggregates all matching rows on the server without hydrating the entire card collection. The frontend passes the list's query to both globe views, aborts obsolete geography/directory requests, and ignores stale pagination responses. Dot geometry is memoized while the projection animates with requestAnimationFrame along a shortest great-circle path.

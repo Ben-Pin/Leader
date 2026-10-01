@@ -146,6 +146,10 @@ test('10,025 cards in one list remain paginated, searchable and durable', t => {
   const search = store.listCards({ q: 'company 10024', limit: 50 });
   const searchDone = performance.now();
   assert.equal(page.total, 10025);
+  const geography = store.geography({ listId: list.id, limit: 200, offset: 9800 });
+  assert.equal(geography.total, 10025);
+  assert.equal(geography.countries[0].count, 10025);
+  assert.equal(store.geography({ q: 'company 10024' }).total, 1);
   assert.equal(page.items.length, 200);
   assert.equal(page.items[0].title, 'Demo company 09800');
   assert.equal(store.listCards({ listId: list.id, sort: 'title', limit: 200, offset: 10000 }).items.length, 25);

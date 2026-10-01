@@ -44,3 +44,5 @@ Export `createStore({path,seed=true})` returning `bootstrap()`, `listCards(query
 MCP uses the same operations with schemas, stable IDs, and revision preconditions. Destructive operations are limited to reversible archive.
 
 In normal multi-company mode MCP adds list_companies, create_company, export_company and import_company; existing scoped tools require companyId. Flags and view filters use the same service validation as the browser.
+
+- GET `/geography` -> `{countries:[{country,count}],total}`. Accepts the same selection filters as `/cards`: `listId`, `view`, `tag`, `q`, `country`, `accountType`, `distributorId`. Pagination and sorting do not restrict geography totals. The selected company is scoped through `X-Leader-Company`. The country directory uses `/cards` with the original filters plus `country` and bounded pagination.

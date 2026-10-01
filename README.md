@@ -27,3 +27,7 @@ The local database lives under `data/` and is ignored by Git. Backups are not au
 Инструкции по локальному MCP находятся в [docs/CONNECTOR.md](docs/CONNECTOR.md), результаты проверок — в [docs/VERIFICATION.md](docs/VERIFICATION.md). Коннектор реализован и протестирован, но ещё не установлен в пользовательский MCP-хост. Для изменений через коннектор обновите страницу браузера. Архивирование обратимо через MCP по ID; экрана архива пока нет.
 
 Прототип не включает синхронизацию с TickTick, импорт почты, удалённый облачный доступ, вложения, уведомления и полноценный календарь. Реальные карточки из JSON не импортированы. Не публикуйте loopback-сервер в интернет.
+
+## GitHub source
+
+Private source repository: https://github.com/Ben-Pin/Leader (main branch). Source code, Markdown documentation, tests and UI assets are tracked. Local company databases, mail archives, credentials, dependencies and build outputs are excluded. The GitHub repository does not back up client databases.

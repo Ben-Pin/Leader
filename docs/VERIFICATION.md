@@ -27,6 +27,15 @@ Compact UI follow-up: TypeScript and production bundle passed. Browser verificat
 - There is no automated backup job. Preserve the SQLite file with an appropriate SQLite backup procedure before real-data migration.
 - No calendar/reminders, attachments, cloud sync, multi-user access or TickTick/email import.
 - Plugin manifests and SDK integration are included; host installation remains a separate step.
-- GitHub publishing depends on the user completing browser sign-in. Local source and branch do not imply that a private remote exists.
+- Source and documentation are published to the private Ben-Pin/Leader repository. Client databases remain local and are not part of that source backup.
 
 Run `pnpm test` and `pnpm build` to repeat automated verification. Tests create and remove only their own temporary databases.
+
+
+## Globe and monochrome navigation — 2026-10-02
+
+Production build and all 20 service, HTTP and MCP tests pass. Geography tests compare full-result aggregates against list, flag, star, tag, quarter, search, country and relationship filters, including intersections, empty results, archived cards and duplicate primary/secondary countries. The 10,025-card test verifies geography is independent of pagination.
+
+Browser QA used a disposable two-card fixture, not customer data. Verified global search, active-flag filtering, country-directory scope, an empty search result, and the expanded globe. Selecting Japan moved its marker to the projection center; an intermediate screenshot showed the transition in progress. The main rail has consistent monochrome icons and logo, neutral glass shading and a visible selected state.
+
+Rotation uses eased requestAnimationFrame updates (650–1100 ms) and memoized dot geometry. Reduced-motion behavior and stale-request handling are implemented; no automated frame-rate or assistive-technology benchmark was performed.

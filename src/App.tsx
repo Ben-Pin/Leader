@@ -301,10 +301,10 @@ export default function App() {
 
   return <div className={`app-shell ${selected ? 'detail-is-open' : ''} ${sidebarOpen ? 'sidebar-is-open' : ''}`}>
     <aside className="icon-rail" aria-label="Приложение">
-      <button className="brand-mark" aria-label="О программе Leader" title="О программе Leader" onClick={() => setModal('about')}><LeaderLogo /></button>
+      <button className="brand-mark" aria-label="О программе Leader" title="О программе Leader" onClick={() => setModal('about')}><LeaderLogo monochrome /></button>
       <div className="rail-group">
         <IconButton label="Все клиенты" className={`rail-button ${activeSidebar('view','all')?'selected-rail':''}`} onClick={() => chooseSelection({ kind: 'view', id: 'all' })}><LayoutList size={23}/></IconButton>
-        <IconButton label="In work — активные флаги" className={`rail-button ${activeSidebar('view','active')?'selected-rail':''}`} onClick={() => chooseSelection({kind:'view',id:'active'})}><span className="rail-signals"><i/><i/><i/></span></IconButton>
+        <IconButton label="In work — активные флаги" className={`rail-button ${activeSidebar('view','active')?'selected-rail':''}`} onClick={() => chooseSelection({kind:'view',id:'active'})}><SlidersHorizontal size={22}/></IconButton>
         <IconButton label="Важное" className={`rail-button ${activeSidebar('view', 'starred') ? 'selected-rail' : ''}`} onClick={() => chooseSelection({ kind: 'view', id: 'starred' })}><Star size={22}/></IconButton>
         <IconButton label="Поиск по карточкам" className="rail-button" onClick={() => searchRef.current?.focus()}><Search size={22}/></IconButton>
         <IconButton label="Новая карточка" className="rail-button" onClick={openCreate}><CirclePlus size={22}/></IconButton>
@@ -325,7 +325,7 @@ export default function App() {
       <div className="sidebar-scroll">
         <div className="section-heading"><button onClick={() => setShowLists(!showLists)} aria-expanded={showLists}>{showLists ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}<span>Мои списки</span></button><IconButton label="Создать список" onClick={() => setModal('list')}><Plus size={16}/></IconButton></div>
         {showLists && <nav className="custom-lists">{bootstrap.lists.map(list => <NavItem key={list.id} icon={<Hash size={18} style={{ color: list.color }}/>} label={list.name} count={list.count} selected={activeSidebar('list', list.id)} onClick={() => chooseSelection({ kind: 'list', id: list.id })}/>)}<button className="sidebar-add" onClick={() => setModal('list')}><Plus size={16}/>Добавить список</button></nav>}
-        <ClientGlobe selected={selected} refresh={refreshKey} onExpand={()=>setModal('globe')} onOpen={openRelated}/>
+        <ClientGlobe selected={selected} refresh={refreshKey} query={queryString()} onExpand={()=>setModal('globe')} onOpen={openRelated}/>
         <div className="section-heading tags-heading"><button onClick={() => setShowTags(!showTags)} aria-expanded={showTags}>{showTags ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}<span>Теги</span></button><IconButton label="Создать тег" onClick={() => setModal('tag')}><Plus size={16}/></IconButton></div>
         {showTags && <nav className="tag-nav grouped-tags">{['Страны','Время','Продукт','Стадия','Аппликация','Прочее'].map(group=><details key={group}><summary>{group}<span>{tags.filter(t=>tagCategory(t.name)===group).length}</span></summary>{tags.filter(t=>tagCategory(t.name)===group).map(tag=><NavItem key={tag.id} icon={<TagIcon size={14} style={{color:tag.color}}/>} label={tag.name} count={tag.count||0} selected={activeSidebar('tag',tag.id)} onClick={()=>chooseSelection({kind:'tag',id:tag.id})}/>)}{!tags.some(t=>tagCategory(t.name)===group)&&<small>Пока нет тегов</small>}</details>)}</nav>}
       </div>
@@ -404,7 +404,7 @@ export default function App() {
 
     {savePrompt && <Modal title="Save Changes?" onClose={() => { if (!saving) void resolveChanges('cancel'); }}><p className="form-intro">{draft?.title}</p>{saveError && <p className="error-message" role="alert">{saveError}</p>}<div className="modal-actions"><button className="primary-button" disabled={saving} onClick={() => resolveChanges('yes')}>{saving && <LoaderCircle className="spin" size={14}/>}Yes</button><button className="secondary-button" disabled={saving} onClick={() => resolveChanges('no')}>No</button><button className="secondary-button" disabled={saving} onClick={() => resolveChanges('cancel')}>Cancel</button></div></Modal>}
     <datalist id="country-options">{countryNames.map(name=><option key={name} value={name}/>)}</datalist>
-    {modal==='globe'&&<Modal title={`География · ${bootstrap.company.name}`} className="globe-modal" onClose={()=>setModal(null)}><ClientGlobe expanded selected={selected} refresh={refreshKey} onOpen={async id=>{setModal(null);await openRelated(id);}}/></Modal>}
+    {modal==='globe'&&<Modal title={`География · ${bootstrap.company.name}`} className="globe-modal" onClose={()=>setModal(null)}><ClientGlobe expanded selected={selected} refresh={refreshKey} query={queryString()} onOpen={async id=>{setModal(null);await openRelated(id);}}/></Modal>}
     {modal==='profile'&&<Modal title="Локальный пользователь" onClose={()=>setModal(null)}><form className="create-form" onSubmit={e=>{e.preventDefault();const name=userName.trim()||'Local user';setUserName(name);localStorage.setItem('leader.userName',name);setModal(null);}}><label>Отображаемое имя<input value={userName} maxLength={80} onChange={e=>setUserName(e.target.value)}/></label><p>Локальный профиль этого браузера. Вход в облачный аккаунт пока не используется.</p><button className="primary-button">Сохранить</button></form></Modal>}
     {modal === 'companies' && <CompaniesModal bootstrap={bootstrap} onClose={() => setModal(null)} onChanged={()=>loadBootstrap()} onConnected={company => switchCompany(company.id)}/>}
 
@@ -416,7 +416,9 @@ export default function App() {
   </div>;
 }
 
-function LeaderLogo() { return <img className="leader-logo" src="/leader-chip.svg?v=mono-three" alt="" aria-hidden="true"/>; }
+function LeaderLogo({monochrome=false}:{monochrome?:boolean}) {
+  if(monochrome) return <svg className="leader-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M8 2v3m4-3v3m4-3v3M8 19v3m4-3v3m4-3v3M2 8h3m-3 4h3m-3 4h3M19 8h3m-3 4h3m-3 4h3M9 9v7h7"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg>;
+  return <img className="leader-logo" src="/leader-chip.svg?v=mono-three" alt="" aria-hidden="true"/>; }
 function pluralCards(count: number) { const last = count % 10, lastTwo = count % 100; return last === 1 && lastTwo !== 11 ? 'карточка' : last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? 'карточки' : 'карточек'; }
 function NavItem({ icon, label, count, selected, onClick }: { icon: ReactNode; label: string; count: number; selected: boolean; onClick: () => void }) {
   return <button className={`nav-item ${selected ? 'selected' : ''}`} onClick={onClick} title={label} aria-current={selected ? 'page' : undefined}>{icon}<span>{label}</span><span className="nav-count">{count > 0 ? count.toLocaleString('ru-RU') : ''}</span></button>;

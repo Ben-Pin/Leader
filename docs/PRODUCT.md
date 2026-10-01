@@ -30,3 +30,11 @@ Prototype is single-user on loopback. Cloud synchronization, multi-user permissi
 ## Definition of success
 
 The user opens Leader in a Windows browser, sees a polished populated interface, edits and creates a card, refreshes and retains changes. MCP can discover tools, read cards and create/update a test card. The private GitHub repository contains source and architecture documents, with a separate prototype branch.
+
+## Globe and navigation
+
+The sidebar globe follows the current list, flag/tag filter and global search. Aggregates include every matching card, independently of list pagination; a card with two distinct countries contributes once to each country. Country buttons and map markers open the matching country directory with the same filters. Unknown or missing countries cannot be plotted. Markers represent country-level counts, not office coordinates.
+
+The globe has no visible captions and uses its full sidebar width. Selecting a card or country rotates along the shortest great-circle route with eased motion (650–1100 ms); dragging interrupts the transition. Reduced-motion preferences disable automatic animation. The left icon rail uses a single silver stroke style, including the chip logo, with neutral glass shading and an inset selected state.
+
+Geography data: Natural Earth, distributed via `world-atlas` and `topojson-client`.

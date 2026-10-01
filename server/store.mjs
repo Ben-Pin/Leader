@@ -224,6 +224,45 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     if (version !== row.version) throw new StoreError('Карточка уже изменена. Обновите её и повторите действие.', 409, 'VERSION_CONFLICT');
   };
   const columns = { listId: 'list_id', title: 'title', description: 'description', company: 'company', country: 'country', secondaryCountry: 'secondary_country', contactName: 'contact_name', email: 'email', lastContact: 'last_contact', contactQuarter: 'contact_quarter', dueDate: 'due_date', status: 'status', priority: 'priority', completed: 'completed', starred: 'starred', archived: 'archived', accountType: 'account_type' };
+  // Shared by paginated cards and full-result geography.
+  const cardFilter = (query = {}) => {
+    requireObject(query);
+    const where = ['c.archived=0'];
+    const args = [];
+    const view = query.view || 'all';
+    if (!['all', 'active', 'completed', 'starred', ...flagKeys].includes(view)) throw new StoreError('Неизвестный фильтр карточек.');
+    if (view === 'active') where.push('EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.active=1)');
+    if (flagKeys.includes(view)) { where.push('EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.kind=? AND f.active=1)'); args.push(view); }
+    if (view === 'completed') where.push('c.completed=1');
+    if (view === 'starred') where.push('c.starred=1');
+    if (query.listId) { where.push('c.list_id=?'); args.push(string(query.listId, 'listId', 100, true)); }
+    if (query.country) { where.push('(leader_lower(c.country)=? OR leader_lower(c.secondary_country)=?)'); const country=string(query.country,'country',120,true).toLocaleLowerCase('ru'); args.push(country,country); }
+    if (query.distributorId) { where.push('EXISTS (SELECT 1 FROM card_distributors d WHERE d.client_id=c.id AND d.distributor_id=?)'); args.push(string(query.distributorId, 'distributorId', 100, true)); }
+    if (query.accountType === 'channel') where.push("c.account_type IN ('distributor','partner')");
+    else if (query.accountType) {
+      if (!['client','distributor','partner','unspecified'].includes(query.accountType)) throw new StoreError('Invalid account type filter.');
+      where.push('c.account_type=?'); args.push(query.accountType);
+    }
+    if (query.tag) {
+      const tag = string(query.tag, 'tag', 100, true);
+      if (tag.startsWith('quarter:')) {
+        const match = /^quarter:([1-9]\d{3})-([1-4])$/.exec(tag);
+        if (!match) throw new StoreError('Некорректный квартальный тег.');
+        const startMonth = (Number(match[2]) - 1) * 3 + 1;
+        const start = `${match[1]}-${String(startMonth).padStart(2, '0')}-01`;
+        const lastMonth = startMonth + 2;
+        const lastDay = lastMonth === 3 || lastMonth === 12 ? 31 : 30;
+        const end = `${match[1]}-${String(lastMonth).padStart(2, '0')}-${lastDay}`;
+        where.push('((c.last_contact>=? AND c.last_contact<=?) OR (c.last_contact IS NULL AND c.contact_quarter=?))'); args.push(start, end, `${match[1]}-${match[2]}`);
+      } else { where.push('EXISTS (SELECT 1 FROM card_tags ct WHERE ct.card_id=c.id AND ct.tag_id=?)'); args.push(tag); }
+    }
+    if (query.q) {
+      const search = string(query.q, 'q', 200).toLocaleLowerCase('ru').replace(/[\\%_]/g, '\\$&');
+      where.push(`(leader_lower(c.title) LIKE ? ESCAPE '\\' OR leader_lower(c.company) LIKE ? ESCAPE '\\' OR leader_lower(c.country) LIKE ? ESCAPE '\\' OR leader_lower(c.secondary_country) LIKE ? ESCAPE '\\' OR leader_lower(c.contact_name) LIKE ? ESCAPE '\\' OR leader_lower(c.email) LIKE ? ESCAPE '\\' OR leader_lower(c.description) LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND leader_lower(f.comment) LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM card_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.card_id=c.id AND leader_lower(t.name) LIKE ? ESCAPE '\\'))`);
+      for (let i = 0; i < 9; i++) args.push(`%${search}%`);
+    }
+    return { condition: where.join(' AND '), args };
+  };
   const service = {
     // Local migration scripts use the same validation and one atomic transaction.
     transaction(operation) { return transaction(operation); },
@@ -282,44 +321,10 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       };
       const limit = integer(query.limit, 100, 1, 200, 'limit');
       const offset = integer(query.offset, 0, 0, Number.MAX_SAFE_INTEGER, 'offset');
-      const where = ['c.archived=0'];
-      const args = [];
-      const view = query.view || 'all';
-      if (!['all', 'active', 'completed', 'starred', ...flagKeys].includes(view)) throw new StoreError('Неизвестный фильтр карточек.');
-      if (view === 'active') where.push('EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.active=1)');
-      if (flagKeys.includes(view)) { where.push('EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.kind=? AND f.active=1)'); args.push(view); }
-      if (view === 'completed') where.push('c.completed=1');
-      if (view === 'starred') where.push('c.starred=1');
-      if (query.listId) { where.push('c.list_id=?'); args.push(string(query.listId, 'listId', 100, true)); }
-      if (query.country) { where.push('(leader_lower(c.country)=? OR leader_lower(c.secondary_country)=?)'); const country=string(query.country,'country',120,true).toLocaleLowerCase('ru'); args.push(country,country); }
-      if (query.distributorId) { where.push('EXISTS (SELECT 1 FROM card_distributors d WHERE d.client_id=c.id AND d.distributor_id=?)'); args.push(string(query.distributorId, 'distributorId', 100, true)); }
-      if (query.accountType === 'channel') where.push("c.account_type IN ('distributor','partner')");
-      else if (query.accountType) {
-        if (!['client','distributor','partner','unspecified'].includes(query.accountType)) throw new StoreError('Invalid account type filter.');
-        where.push('c.account_type=?'); args.push(query.accountType);
-      }
-      if (query.tag) {
-        const tag = string(query.tag, 'tag', 100, true);
-        if (tag.startsWith('quarter:')) {
-          const match = /^quarter:([1-9]\d{3})-([1-4])$/.exec(tag);
-          if (!match) throw new StoreError('Некорректный квартальный тег.');
-          const startMonth = (Number(match[2]) - 1) * 3 + 1;
-          const start = `${match[1]}-${String(startMonth).padStart(2, '0')}-01`;
-          const lastMonth = startMonth + 2;
-          const lastDay = lastMonth === 3 || lastMonth === 12 ? 31 : 30;
-          const end = `${match[1]}-${String(lastMonth).padStart(2, '0')}-${lastDay}`;
-          where.push('((c.last_contact>=? AND c.last_contact<=?) OR (c.last_contact IS NULL AND c.contact_quarter=?))'); args.push(start, end, `${match[1]}-${match[2]}`);
-        } else { where.push('EXISTS (SELECT 1 FROM card_tags ct WHERE ct.card_id=c.id AND ct.tag_id=?)'); args.push(tag); }
-      }
-      if (query.q) {
-        const search = string(query.q, 'q', 200).toLocaleLowerCase('ru').replace(/[\\%_]/g, '\\$&');
-        where.push(`(leader_lower(c.title) LIKE ? ESCAPE '\\' OR leader_lower(c.company) LIKE ? ESCAPE '\\' OR leader_lower(c.country) LIKE ? ESCAPE '\\' OR leader_lower(c.secondary_country) LIKE ? ESCAPE '\\' OR leader_lower(c.contact_name) LIKE ? ESCAPE '\\' OR leader_lower(c.email) LIKE ? ESCAPE '\\' OR leader_lower(c.description) LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND leader_lower(f.comment) LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM card_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.card_id=c.id AND leader_lower(t.name) LIKE ? ESCAPE '\\'))`);
-        for (let i = 0; i < 9; i++) args.push(`%${search}%`);
-      }
+      const { condition, args } = cardFilter(query);
       const sorts = { updated: 'c.updated_at DESC,c.id', contact: "COALESCE(c.last_contact,substr(c.contact_quarter,1,4)||'-'||printf('%02d',CAST(substr(c.contact_quarter,-1) AS INTEGER)*3)||'-00') DESC,c.title COLLATE NOCASE,c.id", title: 'leader_lower(c.title),c.id', titleDesc: 'leader_lower(c.title) DESC,c.id' };
       const sort = query.sort || 'updated';
       if (!Object.hasOwn(sorts, sort)) throw new StoreError('Неизвестный порядок сортировки.');
-      const condition = where.join(' AND ');
       const total = sql(`SELECT COUNT(*) AS total FROM cards c WHERE ${condition}`).get(...args).total;
       const items = sql(`SELECT c.* FROM cards c WHERE ${condition} ORDER BY ${sorts[sort]} LIMIT ? OFFSET ?`).all(...args, limit, offset).map(hydrate);
       return { items, total, limit, offset };
@@ -333,9 +338,10 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       for (const kind of flagKeys) stats[kind] = sql('SELECT COUNT(*) AS n FROM cards c JOIN card_flags f ON f.card_id=c.id WHERE c.archived=0 AND f.kind=? AND f.active=1').get(kind).n;
       return { lists, tags: [...quarters, ...tags], stats, demo: sql("SELECT value FROM metadata WHERE key='demo'").get()?.value === 'true' };
     },
-    geography() {
-      const countries = sql("SELECT country,COUNT(*) AS count FROM (SELECT id,trim(country) AS country FROM cards WHERE archived=0 UNION SELECT id,trim(secondary_country) AS country FROM cards WHERE archived=0) WHERE country<>'' GROUP BY country ORDER BY count DESC,country").all();
-      return { countries, total: sql('SELECT COUNT(*) AS n FROM cards WHERE archived=0').get().n };
+    geography(query = {}) {
+      const { condition, args } = cardFilter(query);
+      const countries = sql(`WITH matched AS (SELECT c.id,c.country,c.secondary_country FROM cards c WHERE ${condition}) SELECT country,COUNT(*) AS count FROM (SELECT id,trim(country) AS country FROM matched UNION SELECT id,trim(secondary_country) AS country FROM matched) WHERE country<>'' GROUP BY country ORDER BY count DESC,country`).all(...args);
+      return { countries, total: sql(`SELECT COUNT(*) AS n FROM cards c WHERE ${condition}`).get(...args).n };
     },
     exportData() {
       return transaction(() => ({ format: 'leader-company', version: 1, demo: service.bootstrap().demo,
