@@ -4,7 +4,7 @@ import {
   ChevronRight, Circle, CircleCheck, CircleHelp, CirclePlus, Clock3, Copy, Flag, Globe2,
   Hash, Inbox, LayoutList, LoaderCircle, Mail, MessageSquare, MoreHorizontal, Plus,
   Search, Settings2, ShieldCheck, SlidersHorizontal, Star, Tag as TagIcon, Trash2, UserRound,
-  UsersRound, X, DollarSign, Truck, TriangleAlert, Save, Database, Download, Upload,
+  UsersRound, X, DollarSign, Truck, TriangleAlert, Save, Database, Download, Upload, Wrench,
 } from 'lucide-react';
 import { ApiError, request, selectCompany } from './api';
 import { Relationships } from './Relationships';
@@ -13,10 +13,12 @@ import { countryNames,tagCategory } from './geography';
 import './workspaces.css';
 import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag, FlagKey, CompanyDatabase } from './types';
 
-const workFlags: { key: FlagKey; label: string; Icon: typeof DollarSign }[] = [
+const workFlags: { key: FlagKey; label: string; Icon: typeof DollarSign | typeof TuxIcon }[] = [
   { key: 'inQuote', label: 'In quote', Icon: DollarSign },
   { key: 'logisticsIssue', label: 'Logistics issue', Icon: Truck },
   { key: 'administrativeIssue', label: 'Administrative issue', Icon: TriangleAlert },
+  { key: 'swIssue', label: 'SW issue', Icon: TuxIcon },
+  { key: 'hwIssue', label: 'HW issue', Icon: Wrench },
 ];
 
 const statuses: { value: LeadStatus; label: string; color: string }[] = [
@@ -277,7 +279,7 @@ export default function App() {
   };
   const title = selection.kind === 'list' ? bootstrap?.lists.find(l => l.id === selection.id)?.name || 'Список'
     : selection.kind === 'tag' ? bootstrap?.tags.find(t => t.id === selection.id)?.name || selection.id.replace('quarter:', '')
-    : ({ all: 'Все карточки', active: 'In work', starred: 'Важное', inQuote: 'In quote', logisticsIssue: 'Logistics issue', administrativeIssue: 'Administrative issue' })[selection.id];
+    : ({ all: 'Все карточки', active: 'In work', starred: 'Важное', inQuote: 'In quote', logisticsIssue: 'Logistics issue', administrativeIssue: 'Administrative issue', swIssue: 'SW issue', hwIssue: 'HW issue' })[selection.id];
   const selectedList = bootstrap?.lists.find(l => l.id === (draft?.listId || selected?.listId));
   const draftQuarter = draft ? quarterTag(draft.lastContact) || (!draft.lastContact && draft.contactQuarter ? quarterTag(`${draft.contactQuarter.slice(0,4)}-${String(Number(draft.contactQuarter.slice(-1))*3).padStart(2,'0')}-01`) : null) : null;
   const draftTags = draft ? [...(draftQuarter ? [draftQuarter] : []), ...draft.tagIds.map(id => bootstrap?.tags.find(tag => tag.id === id)).filter((tag): tag is Tag => Boolean(tag) && !tag!.id.startsWith('quarter:'))] : [];
@@ -416,6 +418,14 @@ export default function App() {
   </div>;
 }
 
+function TuxIcon({size=16}:{size?:number}) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M7 10c0-5 1.5-8 5-8s5 3 5 8c1 2 2 4 2 6 0 3-3 5-7 5s-7-2-7-5c0-2 1-4 2-6Z"/>
+    <ellipse cx="12" cy="14.5" rx="3.8" ry="5"/>
+    <path d="m10 7 2-1 2 1-2 2Zm-3 4-4 5m14-5 4 5M8 19l-4 2 5 1 2-2m2 0 2 2 5-1-4-2"/>
+    <circle cx="10" cy="5" r=".6" fill="currentColor" stroke="none"/><circle cx="14" cy="5" r=".6" fill="currentColor" stroke="none"/>
+  </svg>;
+}
 function LeaderLogo({monochrome=false}:{monochrome?:boolean}) {
   if(monochrome) return <svg className="leader-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M8 2v3m4-3v3m4-3v3M8 19v3m4-3v3m4-3v3M2 8h3m-3 4h3m-3 4h3M19 8h3m-3 4h3m-3 4h3M9 9v7h7"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg>;
   return <img className="leader-logo" src="/leader-chip.svg?v=mono-three" alt="" aria-hidden="true"/>; }

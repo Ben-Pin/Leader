@@ -20,6 +20,8 @@ button.work-flag:hover{filter:brightness(.97)}
 .signal-button,.signal-comment{--signal:#21a66a;--signal-ink:#187b4e;--signal-soft:#e6f7ee}
 .signal-button.logisticsIssue,.signal-comment.logisticsIssue{--signal:#f1c232;--signal-ink:#876500;--signal-soft:#fff6d6}
 .signal-button.administrativeIssue,.signal-comment.administrativeIssue{--signal:#e55860;--signal-ink:#bb3540;--signal-soft:#ffebee}
+.signal-button.swIssue,.signal-comment.swIssue{--signal:#4278d4;--signal-ink:#285cad;--signal-soft:#eaf1ff}
+.signal-button.hwIssue,.signal-comment.hwIssue{--signal:#77808d;--signal-ink:#515b69;--signal-soft:#edf0f3}
 .signal-button{position:relative;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:32px;height:32px;padding:0;border:1px solid color-mix(in srgb,var(--signal) 38%,white);border-radius:50%;background:var(--signal-soft);color:var(--signal-ink);transition:background .15s,box-shadow .15s,transform .15s}
 button.signal-button:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--signal) 14%,transparent)}
 button.signal-button:active{transform:translateY(1px)}
@@ -97,7 +99,7 @@ button.signal-button:active{transform:translateY(1px)}
 .globe-directory>p{font-size:12px;line-height:1.6;color:#79869b}
 
 /* Neutral glass facets and matching engraved line icons across the rail. */
-.app-shell>.icon-rail{color:#ececec;background:linear-gradient(155deg,#626262 0%,#424242 44%,#2e2e2e 100%);border-right:1px solid #ffffff30;box-shadow:inset -1px 0 0 #00000024,inset 1px 0 0 #ffffff24}
+.app-shell>.icon-rail{color:#ececec;background:#405ba5;border-right:1px solid #ffffff30;box-shadow:inset -1px 0 0 #00000024,inset 1px 0 0 #ffffff24}
 .icon-rail .rail-button,.icon-rail .brand-mark,.icon-rail .rail-avatar{display:grid;place-items:center;width:38px;height:38px;padding:0;color:#ededed;border:1px solid #ffffff16;border-radius:9px;background:linear-gradient(135deg,#ffffff16 0%,#ffffff05 49%,#00000009 50%,#ffffff06 100%);box-shadow:inset 0 1px 0 #ffffff20,inset 0 -1px 0 #0000001f,0 2px 4px #00000014;transition:background .18s,box-shadow .18s,transform .18s}
 .icon-rail .rail-button svg,.icon-rail .brand-mark svg,.icon-rail .rail-avatar svg{width:22px;height:22px;stroke-width:1.65;filter:drop-shadow(0 1px 1px #00000050)}
 .icon-rail .brand-mark .leader-logo{width:26px;height:26px}
@@ -107,3 +109,5 @@ button.signal-button:active{transform:translateY(1px)}
 .icon-rail button:focus-visible{outline:2px solid #fff;outline-offset:3px}
 @media(max-width:560px){.globe-stage{height:370px;min-height:300px;flex:none}.globe-stage .globe-svg{height:100%;max-height:none;flex:1}}
 @media(prefers-reduced-motion:reduce){.icon-rail button,.globe-expand{transition:none!important}.icon-rail button:hover{transform:none}}
+
+@media(max-width:380px){.detail-pane .detail-topbar{padding-left:12px;padding-right:12px}.detail-topbar .traffic-lights{gap:6px}.detail-topbar .save-button{padding-left:8px;padding-right:8px}}

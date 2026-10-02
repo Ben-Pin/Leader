@@ -11,7 +11,7 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 - `checklist`: `[{id,text,done}]`.
 - `activity`: `[{id,text,createdAt}]`, newest first.
 - Input tags use `tagIds: string[]`. Quarter tags must not be submitted in tagIds.
-- `flags`: `{inQuote:{active,comment}, logisticsIssue:{active,comment}, administrativeIssue:{active,comment}}`. Updates may supply any subset of flag keys. Comments are single-line, at most 300 characters. Clearing a flag does not implicitly erase its comment.
+- `flags`: `{inQuote:{active,comment}, logisticsIssue:{active,comment}, administrativeIssue:{active,comment}, swIssue:{active,comment}, hwIssue:{active,comment}}`. Updates may supply any subset of flag keys. Comments are single-line, at most 300 characters. Clearing a flag does not implicitly erase its comment.
 - `accountType`: `unspecified | client | distributor | partner`; `distributorIds`: up to 20 same-company partner/distributor IDs. Read responses include `distributors` summaries and non-archived `clientCount`. Search accepts `distributorId` and `accountType` (including `channel` for both partner types). Links reject self-reference and cycles and survive export/import.
 - `contactQuarter`: optional `YYYY-Q` fallback when an exact contact day is unknown. `lastContact` takes precedence. Fallback tags are displayed first, colored and filterable, without fabricating a date.
 - `List`: `{id,name,color,count}`; `Tag`: `{id,name,color,count}`.
@@ -28,7 +28,7 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 - POST `/tags` `{name,color}` -> Tag.
 - GET `/health` -> `{ok:true}`.
 
-Browser writes send `X-Leader-Token: csrfToken`. All scoped requests send `X-Leader-Company: companyId`; this is mandatory for writes. Bootstrap includes `company`, `companies`, and flag counts in stats. `view=active` means no active flags; `view=inQuote|logisticsIssue|administrativeIssue` selects that flag. The UI no longer uses legacy completion.
+Browser writes send `X-Leader-Token: csrfToken`. All scoped requests send `X-Leader-Company: companyId`; this is mandatory for writes. Bootstrap includes `company`, `companies`, and flag counts in stats. `view=active` means at least one active flag; `view=inQuote|logisticsIssue|administrativeIssue|swIssue|hwIssue` selects that flag. The UI no longer uses legacy completion.
 
 - GET `/companies` -> `{companies:[{id,name}]}`.
 - POST `/companies` `{name}` -> new empty `{id,name}`.

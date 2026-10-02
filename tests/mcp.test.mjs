@@ -114,15 +114,19 @@ test('MCP selects companies explicitly and roundtrips flags and company exports'
     assert.ok(discovery.tools.find(tool => tool.name === 'create_card').inputSchema.required.includes('companyId'));
     assert.ok((await call('list_companies')).companies.some(company => company.name === 'BrothersInArms'));
     const lists = await call('list_lists', { companyId: 'clab' });
-    const card = await call('create_card', { companyId: 'clab', listId: lists.lists[0].id, title: 'Scoped fixture', flags: { inQuote: { active: true, comment: 'Waiting' } } });
+    const card = await call('create_card', { companyId: 'clab', listId: lists.lists[0].id, title: 'Scoped fixture', flags: { inQuote: { active: true, comment: 'Waiting' }, swIssue: { active: true, comment: 'Kernel test' }, hwIssue: { active: true, comment: 'Board test' } } });
     assert.equal((await call('search_cards', { companyId: 'clab', view: 'inQuote' })).total, 1);
     assert.equal((await call('search_cards', { companyId: 'brothers-in-arms' })).total, 0);
     assert.equal((await client.callTool({ name: 'get_card', arguments: { companyId: 'brothers-in-arms', id: card.id } })).isError, true);
+    for (const view of ['swIssue','hwIssue']) assert.equal((await call('search_cards', { companyId: 'clab', view })).total, 1);
     const bundle = await call('export_company', { id: 'clab' });
     const copy = await call('import_company', { name: 'MCP copy', bundle });
     assert.equal((await call('get_card', { companyId: copy.id, id: card.id })).flags.inQuote.comment, 'Waiting');
-    await call('update_card', { companyId: 'clab', id: card.id, version: card.version, flags: { inQuote: { active: false, comment: 'Accepted' } } });
+    await call('update_card', { companyId: 'clab', id: card.id, version: card.version, flags: { inQuote: { active: false, comment: 'Accepted' }, swIssue: { active: false, comment: 'Kernel test' }, hwIssue: { active: false, comment: 'Board test' } } });
     assert.equal((await call('search_cards', { companyId: 'clab', view: 'active' })).total, 0);
-    assert.equal((await call('get_card', { companyId: copy.id, id: card.id })).flags.inQuote.active, true);
+    const copied = await call('get_card', { companyId: copy.id, id: card.id });
+    assert.equal(copied.flags.inQuote.active, true);
+    assert.equal(copied.flags.swIssue.comment, 'Kernel test');
+    assert.equal(copied.flags.hwIssue.active, true);
   } finally { await client.close(); companies.close(); rmSync(directory, { recursive: true, force: true }); }
 });

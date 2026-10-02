@@ -3,7 +3,7 @@ export interface ClientList { id: string; name: string; color: string; count: nu
 export interface ChecklistItem { id: string; text: string; done: boolean }
 export interface Activity { id: string; text: string; createdAt: string }
 export type LeadStatus = 'lead' | 'contacted' | 'qualified' | 'proposal' | 'client';
-export type FlagKey = 'inQuote' | 'logisticsIssue' | 'administrativeIssue';
+export type FlagKey = 'inQuote' | 'logisticsIssue' | 'administrativeIssue' | 'swIssue' | 'hwIssue';
 export type CardFlags = Record<FlagKey, { active: boolean; comment: string; activatedAt?: string | null }>;
 export interface CompanyDatabase { id: string; name: string }
 export type AccountType = 'unspecified' | 'client' | 'distributor' | 'partner';

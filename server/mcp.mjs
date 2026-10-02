@@ -3,7 +3,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { createStore } from './store.mjs';
+import { createStore, flagKeys } from './store.mjs';
 import { createCompanyManager } from './companies.mjs';
 
 const id = z.string().min(1).max(100);
@@ -30,7 +30,7 @@ const cardFields = {
   distributorIds: z.array(id).max(20).describe('Partner/distributor card IDs in this company. Links are bidirectional; client lists are derived.'),
   tagIds: z.array(id).max(50).describe('Custom tag IDs only. Never submit a derived quarter:YYYY-Q ID.'),
   checklist: z.array(z.object({ id: id.optional(), text: z.string().trim().min(1).max(2000), done: z.boolean().optional() })).max(100),
-  flags: z.object(Object.fromEntries(['inQuote', 'logisticsIssue', 'administrativeIssue'].map(kind => [kind, z.object({ active: z.boolean(), comment: z.string().max(300).optional() }).optional()]))),
+  flags: z.object(Object.fromEntries(flagKeys.map(kind => [kind, z.object({ active: z.boolean(), comment: z.string().max(300).optional() }).optional()]))),
 };
 const optionalCardFields = Object.fromEntries(Object.entries(cardFields).map(([name, schema]) => [name, schema.optional()]));
 const readAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -62,7 +62,7 @@ export function createMcpServer(store, companies) {
   tool('search_cards', 'Найти карточки', 'Search and filter cards. Use offset and total to fetch further pages. Archived cards are omitted.', {
     listId: id.optional(), tag: id.optional(), q: z.string().max(200).optional(), country: z.string().max(120).optional(),
     distributorId: id.optional(), accountType: z.enum(['unspecified', 'client', 'distributor', 'partner', 'channel']).optional(),
-    view: z.enum(['all', 'active', 'completed', 'starred', 'inQuote', 'logisticsIssue', 'administrativeIssue']).optional(),
+    view: z.enum(['all', 'active', 'completed', 'starred', ...flagKeys]).optional(),
     sort: z.enum(['updated', 'contact', 'title', 'titleDesc']).optional(),
     limit: z.number().int().min(1).max(200).optional(), offset: z.number().int().min(0).optional(),
   }, (input, db) => db.listCards(input));

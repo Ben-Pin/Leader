@@ -14,7 +14,7 @@ export class StoreError extends Error {
 }
 
 const stages = new Set(['lead', 'contacted', 'qualified', 'proposal', 'client']);
-export const flagKeys = ['inQuote', 'logisticsIssue', 'administrativeIssue'];
+export const flagKeys = ['inQuote', 'logisticsIssue', 'administrativeIssue', 'swIssue', 'hwIssue'];
 const textFields = { title: 300, description: 50000, company: 300, country: 120, secondaryCountry: 120, contactName: 300, email: 320 };
 const writableFields = new Set([...Object.keys(textFields), 'listId', 'lastContact', 'contactQuarter', 'dueDate', 'status', 'priority', 'completed', 'starred', 'archived', 'tagIds', 'checklist', 'flags', 'accountType', 'distributorIds']);
 const requireObject = (value) => {
@@ -59,7 +59,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     CREATE TABLE IF NOT EXISTS card_tags (card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE, tag_id TEXT NOT NULL REFERENCES tags(id), position INTEGER NOT NULL, PRIMARY KEY(card_id, tag_id));
     CREATE TABLE IF NOT EXISTS checklist_items (id TEXT PRIMARY KEY, card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE, text TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, position INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS activity (id TEXT PRIMARY KEY, card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE, text TEXT NOT NULL, created_at TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS card_flags (card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('inQuote','logisticsIssue','administrativeIssue')), active INTEGER NOT NULL CHECK(active IN (0,1)), comment TEXT NOT NULL DEFAULT '', PRIMARY KEY(card_id,kind));
+    CREATE TABLE IF NOT EXISTS card_flags (card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('inQuote','logisticsIssue','administrativeIssue','swIssue','hwIssue')), active INTEGER NOT NULL CHECK(active IN (0,1)), comment TEXT NOT NULL DEFAULT '', activated_at TEXT, PRIMARY KEY(card_id,kind));
     CREATE INDEX IF NOT EXISTS idx_flags_active ON card_flags(kind,active,card_id);
     CREATE INDEX IF NOT EXISTS idx_cards_list_active_updated ON cards(list_id, archived, completed, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_cards_contact ON cards(archived, last_contact DESC);
@@ -77,7 +77,25 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
   if (!cardColumns.includes('secondary_country')) db.exec("ALTER TABLE cards ADD COLUMN secondary_country TEXT NOT NULL DEFAULT ''");
   if (!cardColumns.includes('starred_at')) db.exec('ALTER TABLE cards ADD COLUMN starred_at TEXT');
   if (!db.prepare('PRAGMA table_info(card_flags)').all().some(c => c.name === 'activated_at')) db.exec('ALTER TABLE card_flags ADD COLUMN activated_at TEXT');
-  db.exec('PRAGMA user_version=5');
+  // SQLite CHECK constraints require rebuilding this child table. Keep all flag
+  // values and activation dates, and commit the schema change atomically.
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const flagSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='card_flags'").get().sql;
+    if (!flagSchema.includes("'swIssue'")) {
+      db.exec(`CREATE TABLE card_flags_v6 (
+        card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK(kind IN ('inQuote','logisticsIssue','administrativeIssue','swIssue','hwIssue')),
+        active INTEGER NOT NULL CHECK(active IN (0,1)), comment TEXT NOT NULL DEFAULT '', activated_at TEXT,
+        PRIMARY KEY(card_id,kind));
+        INSERT INTO card_flags_v6(card_id,kind,active,comment,activated_at)
+          SELECT card_id,kind,active,comment,activated_at FROM card_flags;
+        DROP TABLE card_flags;
+        ALTER TABLE card_flags_v6 RENAME TO card_flags;
+        CREATE INDEX idx_flags_active ON card_flags(kind,active,card_id);`);
+    }
+    db.exec('PRAGMA user_version=6; COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
   const statements = new Map();
   const sql = (query) => {
     if (!statements.has(query)) statements.set(query, db.prepare(query));

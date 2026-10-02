@@ -13,7 +13,7 @@ Browser -> HTTP -> shared service -> SQLite <- shared service <- MCP <- agent.
 
 ## Data
 
-Tables: lists, cards, tags, card_tags, checklist_items, activity, card_flags. Stable random IDs. Cards retain legacy completed for export compatibility, but the UI uses independent inQuote/logisticsIssue/administrativeIssue flags instead. Each flag has active and a single-line comment; flag writes participate in the same card revision and transaction.
+Tables: lists, cards, tags, card_tags, checklist_items, activity, card_flags. Stable random IDs. Cards retain legacy completed for export compatibility, but the UI uses independent inQuote/logisticsIssue/administrativeIssue/swIssue/hwIssue flags instead. Each flag has active and a single-line comment; flag writes participate in the same card revision and transaction.
 
 Company registry: `data/companies.sqlite`. The legacy `data/leader.sqlite` remains connected as Demo, preserving existing edits. Clab and BrothersInArms use their own files under `data/companies/`. Additional companies use generated UUID filenames; imports never choose a filesystem path. HTTP selects a company per request with X-Leader-Company; MCP requires companyId per operation. There is no process-global active company, so two windows/agents cannot redirect each other's writes.
 
@@ -40,3 +40,5 @@ First deliver a tested local stdio MCP server. The plugin package points to its 
 Import preview with deduplication/provenance; managed backup/restore; stronger full-text search; bulk edits; optional calendar and board modes; opt-in remote access; Windows packaging.
 
 Globe queries and card pagination share one SQL filter builder. Geography aggregates all matching rows on the server without hydrating the entire card collection. The frontend passes the list's query to both globe views, aborts obsolete geography/directory requests, and ignores stale pagination responses. Dot geometry is memoized while the projection animates with requestAnimationFrame along a shortest great-circle path.
+
+Schema v6 adds swIssue and hwIssue. Existing card_flags tables are rebuilt inside one immediate transaction, retaining comments, activation timestamps and card revisions. The flag index and foreign-key constraint are recreated. Older exports import with new flags inactive. HTTP, MCP, filtering, statistics and geography share the same five flag keys.

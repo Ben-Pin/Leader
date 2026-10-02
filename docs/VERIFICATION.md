@@ -39,3 +39,7 @@ Production build and all 20 service, HTTP and MCP tests pass. Geography tests co
 Browser QA used a disposable two-card fixture, not customer data. Verified global search, active-flag filtering, country-directory scope, an empty search result, and the expanded globe. Selecting Japan moved its marker to the projection center; an intermediate screenshot showed the transition in progress. The main rail has consistent monochrome icons and logo, neutral glass shading and a visible selected state.
 
 Rotation uses eased requestAnimationFrame updates (650–1100 ms) and memoized dot geometry. Reduced-motion behavior and stale-request handling are implemented; no automated frame-rate or assistive-technology benchmark was performed.
+
+## Five attention flags — 2026-10-02
+
+Production build and all 21 automated tests pass, including a v5-to-v6 SQLite migration fixture, persistence after restart, unchanged legacy flag comments/dates/revisions, independent SW/HW filters and counts, geography, portable export/import and real MCP calls. Browser QA on a disposable company saved both new flag comments and verified the two filtered lists and matching globe. The original blue rail background is restored; the monochrome glass-style icons are retained. Local SQLite backups were created and checked before updating the working databases.
