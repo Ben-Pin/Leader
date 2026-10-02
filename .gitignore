@@ -10,4 +10,5 @@ data/
 !.env.example
 .tools/
 test-results/
+work/
 *.zip

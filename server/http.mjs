@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import { createStore, StoreError } from './store.mjs';
 import { createCompanyManager } from './companies.mjs';
+import { createBackupService } from './backups.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export function createHttpApp({ store, companies, token = randomBytes(32).toString('hex') }) {
@@ -83,10 +84,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const path = process.env.LEADER_DB || process.env.LEADER_DB_PATH;
   const store = path ? createStore({ path, seed: process.env.LEADER_SEED !== 'false' }) : null;
   const companies = path ? null : createCompanyManager({ directory: process.env.LEADER_DATA_DIR || resolve(root, 'data'), seed: process.env.LEADER_SEED !== 'false' });
+  const backups = companies ? createBackupService({ manager: companies, directory: process.env.LEADER_DATA_DIR || resolve(root, 'data') }) : null;
+  if (backups) { try { backups.start(); } catch (error) { console.error('Initial Leader backup failed:', error); } }
   const port = Number(process.env.PORT || 4177);
   const app = createHttpApp({ store, companies });
   const server = app.listen(port, '127.0.0.1', () => console.log(`Leader: http://127.0.0.1:${port}`));
-  const close = () => server.close(() => { (companies || store).close(); process.exit(0); });
+  const close = () => server.close(() => { backups?.stop(); (companies || store).close(); process.exit(0); });
   process.on('SIGINT', close);
   process.on('SIGTERM', close);
 }

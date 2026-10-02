@@ -172,6 +172,15 @@ export default function App() {
     window.addEventListener('pagehide', onPageHide);
     return () => window.removeEventListener('pagehide', onPageHide);
   }, [dirty, selected, draft, bootstrap]);
+  useEffect(() => {
+    const warnBeforeLeave = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current && !saveInFlight.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeLeave);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeave);
+  }, []);
 
   const queryString = useCallback((offset = 0) => {
     const query = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset), sort, q: debouncedSearch.trim() });
@@ -416,7 +425,7 @@ export default function App() {
         <div className="traffic-lights" aria-label="Card flags">{workFlags.map(({ key, label, Icon }) => <button key={key} role="checkbox" className={`signal-button ${key} ${draft.flags[key].active ? 'selected' : ''}`} aria-label={`Flag ${label}`} title={label} aria-checked={draft.flags[key].active} onClick={() => updateDraft('flags', { ...draft.flags, [key]: { ...draft.flags[key], active: !draft.flags[key].active } })} disabled={saving || detailLoading}><Icon size={16}/></button>)}</div>
         <span className="toolbar-divider"/><IconButton label="Close card" onClick={closeCard}><X size={19}/></IconButton>
       </div></div>
-      <div className="detail-scroll" ref={detailScrollRef}>
+      <div className="detail-scroll" ref={detailScrollRef} inert={saving}>
         {workFlags.some(({ key }) => draft.flags[key].active) && <div className="card-work-flags" aria-label="Flag comments">
           {workFlags.filter(({ key }) => draft.flags[key].active).map(({ key, label }) => <div className={`signal-comment ${key}`} key={key}><span className="signal-dot"/><input className="flag-comment" aria-label={`Comment ${label}`} title={label} placeholder="…" maxLength={300} value={draft.flags[key].comment} onChange={e => updateDraft('flags', { ...draft.flags, [key]: { ...draft.flags[key], comment: e.target.value } })} disabled={saving || detailLoading}/></div>)}
         </div>}
