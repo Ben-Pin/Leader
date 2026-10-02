@@ -6,7 +6,7 @@ An independent local client-card application for Windows, usable in a browser, v
 
 ## Prototype
 
-- Three-pane layout: icon rail and lists/tags, task-style card list, editable details.
+- Three-pane layout: icon rail and lists/tags, task-style card list, editable details. On desktop the middle list uses two thirds of its former width; the released space goes to the detail card. Details use a 28px heading, 14px body/inputs and 12px labels. Titles, descriptions and draft notes grow with their text; short descriptions keep a compact two-line minimum. Tablet details widen to 560px where space permits; phone details fill the screen.
 - Russian UI. Blue accent, pale sidebar, white work area, fine separators, compact row typography.
 - Several fictional companies with country, contact, description, checklist, and contact history.
 - Create/edit/search/move cards; star, priority and lead stage. Company names are never struck through as completed tasks.

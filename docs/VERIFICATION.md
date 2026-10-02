@@ -43,3 +43,8 @@ Rotation uses eased requestAnimationFrame updates (650–1100 ms) and memoized d
 ## Five attention flags — 2026-10-02
 
 Production build and all 21 automated tests pass, including a v5-to-v6 SQLite migration fixture, persistence after restart, unchanged legacy flag comments/dates/revisions, independent SW/HW filters and counts, geography, portable export/import and real MCP calls. Browser QA on a disposable company saved both new flag comments and verified the two filtered lists and matching globe. The original blue rail background is restored; the monochrome glass-style icons are retained. Local SQLite backups were created and checked before updating the working databases.
+
+
+## Wider detail card — 2026-10-02
+
+TypeScript check and production build pass. Browser QA verified the exact desktop redistribution: at 1575px, the list changes from 837px to 558px and details from 430px to 709px; at 1280px the new widths are approximately 411px and 587px. At 1100px neither pane overflows horizontally, and at 375px the detail card fills the screen with its five flags and Save accessible. In the isolated fixture, a long title grows to three lines, a twelve-line description grows to 557px without an internal scrollbar and shrinks to 64px for a short note, and a six-line draft history note grows to 154px. The working preview was refreshed without unsaved edits and reports no browser console errors. No database or service logic changed.
