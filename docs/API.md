@@ -9,7 +9,7 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 - `lastContact`, `dueDate`: `YYYY-MM-DD` or empty/null.
 - `tags`: `[{id,name,color}]`; derived quarter tag appears first (id `quarter:YYYY-Q`).
 - `checklist`: `[{id,text,done}]`.
-- `activity`: `[{id,text,createdAt}]`, newest first.
+- `activity`: `[{id,text,createdAt,contacts}]`, newest first.
 - Input tags use `tagIds: string[]`. Quarter tags must not be submitted in tagIds.
 - `flags`: `{inQuote:{active,comment}, logisticsIssue:{active,comment}, administrativeIssue:{active,comment}, swIssue:{active,comment}, hwIssue:{active,comment}}`. Updates may supply any subset of flag keys. Comments are single-line, at most 300 characters. Clearing a flag does not implicitly erase its comment.
 - `accountType`: `unspecified | client | distributor | partner`; `distributorIds`: up to 20 same-company partner/distributor IDs. Read responses include `distributors` summaries and non-archived `clientCount`. Search accepts `distributorId` and `accountType` (including `channel` for both partner types). Links reject self-reference and cycles and survive export/import.
@@ -23,7 +23,7 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 - GET `/cards/:id` -> Card.
 - POST `/cards` body partial Card, required title/listId -> Card.
 - PATCH `/cards/:id` body fields to change + required version -> Card.
-- POST `/cards/:id/comments` `{text,version}` -> Card.
+- POST `/cards/:id/comments` `{text,version,contactIds}` -> Card.
 - POST `/lists` `{name,color}` -> List.
 - POST `/tags` `{name,color}` -> Tag.
 - GET `/health` -> `{ok:true}`.
@@ -48,4 +48,7 @@ In normal multi-company mode MCP adds list_companies, create_company, export_com
 - GET `/geography` -> `{countries:[{country,count}],total}`. Accepts the same selection filters as `/cards`: `listId`, `view`, `tag`, `q`, `country`, `accountType`, `distributorId`. Pagination and sorting do not restrict geography totals. The selected company is scoped through `X-Leader-Company`. The country directory uses `/cards` with the original filters plus `country` and bounded pagination.
 
 
-`contacts`: ordered array of `{id,name,role,email}` (maximum 100). IDs are optional on input and generated when omitted; name <=300, role <=500, email <=320 characters. Each nonempty email is validated. Empty rows are omitted. Providing contacts replaces the complete collection; omitting it preserves contacts. Legacy `contactName`/`email` remain first-contact mirrors: legacy patches update only the first contact and retain its role and other contacts. If both formats are supplied, contacts takes precedence. All changes use the card revision and shared HTTP/MCP service; portable export/import includes contacts and accepts older single-contact packages.
+`contacts`: ordered array of `{id,name,role,email,status}` (maximum 100). IDs are optional on input and generated when omitted; name <=300, role <=500, email <=320 characters. Each nonempty email is validated. Empty rows are omitted. Providing contacts replaces the complete collection; omitting it preserves contacts. Legacy `contactName`/`email` remain first-contact mirrors: legacy patches update only the first contact and retain its role and other contacts. If both formats are supplied, contacts takes precedence. All changes use the card revision and shared HTTP/MCP service; portable export/import includes contacts and accepts older single-contact packages.
+
+
+Contact status accepts `active | main | inactive | disturbing | useful | decisions`, default active. `add_comment` / POST comments requires 1–100 contact IDs belonging to that card; missing/empty/foreign IDs are rejected without mutation. Activity contacts are snapshots of the selected contact records, preserving attribution after edits or removal. Old history imports may omit contacts; they remain unlinked rather than inventing participants.

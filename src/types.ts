@@ -1,14 +1,15 @@
 export interface Tag { id: string; name: string; color: string; count?: number }
 export interface ClientList { id: string; name: string; color: string; count: number }
 export interface ChecklistItem { id: string; text: string; done: boolean }
-export interface Activity { id: string; text: string; createdAt: string }
+export interface Activity { id: string; text: string; createdAt: string; contacts: Contact[] }
 export type LeadStatus = 'lead' | 'contacted' | 'qualified' | 'proposal' | 'client';
 export type FlagKey = 'inQuote' | 'logisticsIssue' | 'administrativeIssue' | 'swIssue' | 'hwIssue';
 export type CardFlags = Record<FlagKey, { active: boolean; comment: string; activatedAt?: string | null }>;
 export interface CompanyDatabase { id: string; name: string }
 export type AccountType = 'unspecified' | 'client' | 'distributor' | 'partner';
 export interface RelatedCard { id: string; title: string; country: string; archived: boolean }
-export interface Contact { id: string; name: string; role: string; email: string }
+export type ContactStatus = 'active' | 'main' | 'inactive' | 'disturbing' | 'useful' | 'decisions';
+export interface Contact { id: string; name: string; role: string; email: string; status: ContactStatus }
 export interface Card {
   id: string; listId: string; title: string; description: string; company: string;
   country: string; secondaryCountry: string; contactName: string; email: string; lastContact: string | null;

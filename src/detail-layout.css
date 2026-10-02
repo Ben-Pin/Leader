@@ -98,3 +98,37 @@
   .contact-row label:nth-child(3) { grid-column: 1 / 3; }
   .contact-row .icon-button { grid-column: 3; grid-row: 1; }
 }
+
+.detail-pane .contacts-content .contacts-section { border-top: 0; margin-top: 0; padding-top: 0; }
+
+.contact-status select { font-size: 12px; color: #63708b; background: #f5f7fb; border: 1px solid #e6ebf2; border-radius: 5px; padding: 4px 8px; }
+.contacts-content .contact-row { border-bottom: 1px solid #edf0f4; padding-bottom: 16px; margin-bottom: 16px; }
+.comment-contacts { border: 1px solid #e6ebf2; border-radius: 6px; margin: 0 0 14px; padding: 10px 12px; }
+.comment-contacts legend { font-size: 12px; color: #71809b; padding: 0 5px; }
+.comment-contacts label { display: flex; gap: 9px; align-items: start; margin: 8px 0; font-size: 14px; color: #63708b; }
+.comment-contacts input { margin-top: 4px; accent-color: #5475d9; }
+.comment-contacts small { display: block; font-size: 12px; color: #8b96aa; overflow-wrap: anywhere; }
+.comment-contacts p { font-size: 13px; }
+.activity-contacts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.activity-contacts span { font-size: 12px; background: #edf2fc; color: #5776b6; padding: 3px 7px; border-radius: 4px; overflow-wrap: anywhere; }
+.activity-contacts small { color: #98a2b4; font-size: 11px; }
+
+
+/* Enlarge artwork within the existing navigation columns. */
+.icon-rail .brand-mark { width: 46px; height: 46px; align-self: center; flex-shrink: 0; }
+.icon-rail .brand-mark .leader-logo { width: 33.8px; height: 33.8px; }
+.globe-preview .globe-svg { transform: scale(1.2); }
+.globe-preview { margin-top: 24px; margin-bottom: 24px; }
+.sidebar-scroll { overflow-x: hidden; }
+
+/* Each contact stays a single line of four fields. */
+.contacts-content .contact-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) minmax(90px, .75fr) 24px; gap: 6px; padding-bottom: 12px; margin-bottom: 12px; }
+.contacts-content .contact-row label { grid-column: auto; font-size: 11px; gap: 4px; }
+.contacts-content .contact-row input,
+.contacts-content .contact-row select { width: 100%; min-width: 0; height: 32px; min-height: 32px; padding: 5px 6px; font-size: 12px; line-height: 20px; border: 1px solid #e6ebf2; border-radius: 5px; background: #fafbfd; color: #63708b; }
+.contacts-content .contact-row .icon-button { grid-column: auto; grid-row: auto; width: 24px; height: 32px; margin-top: 20px; }
+@media (max-width: 680px) {
+  .contacts-content .contact-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) 76px 20px; gap: 4px; }
+  .contacts-content .contact-row input,.contacts-content .contact-row select { font-size: 11px; padding: 5px 3px; }
+  .contacts-content .contact-row .icon-button { width: 20px; }
+}

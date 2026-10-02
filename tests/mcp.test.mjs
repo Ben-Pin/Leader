@@ -73,7 +73,7 @@ test('real stdio MCP client shares persistent cards, detects conflicts, and rest
   const stalePayload = stale.structuredContent ?? JSON.parse(stale.content[0].text);
   assert.equal(stalePayload.status, 409);
   assert.equal(store.getCard(card.id).title, 'Updated over MCP');
-  const commented = await call('add_comment', { id: card.id, version: updated.version, text: 'A persisted connector comment' });
+  const commented = await call('add_comment', { id: card.id, version: updated.version, text: 'A persisted connector comment', contactIds: [updated.contacts[1].id] });
   assert.ok(commented.activity.some(item => item.text === 'A persisted connector comment'));
   const archived = await call('update_card', { id: card.id, version: commented.version, archived: true });
   assert.equal((await call('search_cards', { listId: secondList.id })).total, 0);

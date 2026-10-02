@@ -45,3 +45,6 @@ Schema v6 adds swIssue and hwIssue. Existing card_flags tables are rebuilt insid
 
 
 Schema v7 adds a contacts JSON column to cards in the schema transaction. Legacy name/email pairs become the first contact with a stable generated ID and empty role, without changing card revisions or timestamps. Service validation controls shape, lengths, email validity, row count and ID uniqueness within a card; writes keep legacy primary-contact columns synchronized. Search uses json_each over names, roles and emails; the same filter serves lists and geography. Existing portable format remains backward-compatible for import.
+
+
+Schema v8 adds activity.contacts JSON snapshots and fills missing contact statuses with active in one schema transaction, retaining card versions/timestamps. History creation validates participant IDs against the same card inside its revision transaction; snapshots avoid losing attribution on later contact edits/removal. Portable import/export validates and retains snapshots, while accepting old unlinked activity.

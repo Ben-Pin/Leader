@@ -53,7 +53,7 @@ test('shared CRUD persists all fields, ordered tags, checklist and comments', t 
   assert.equal(card.version, 2);
   assert.equal(card.checklist[0].done, true);
   assert.equal(card.tags[0].name, '2026-3');
-  card = store.addComment(card.id, { version: 2, text: 'Обсудили пилот.' });
+  card = store.addComment(card.id, { version: 2, text: 'Обсудили пилот.', contactIds: [card.contacts[0].id] });
   assert.equal(card.version, 3);
   assert.equal(card.activity[0].text, 'Обсудили пилот.');
   assert.equal(store.bootstrap().lists.find(value => value.id === destination.id).count, 1);

@@ -3,7 +3,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { createStore, flagKeys } from './store.mjs';
+import { createStore, flagKeys, contactStatuses } from './store.mjs';
 import { createCompanyManager } from './companies.mjs';
 
 const id = z.string().min(1).max(100);
@@ -16,7 +16,7 @@ const cardFields = {
   company: z.string().max(300),
   country: z.string().max(120),
   secondaryCountry: z.string().max(120),
-  contacts: z.array(z.object({ id: id.optional(), name: z.string().max(300).optional(), role: z.string().max(500).optional(), email: z.string().max(320).optional() }).strict()).max(100).describe('Ordered contacts: name, role/job description, email. Replaces the collection; empty rows are omitted. Legacy contactName/email mirror the first row.'),
+  contacts: z.array(z.object({ id: id.optional(), name: z.string().max(300).optional(), role: z.string().max(500).optional(), status: z.enum(contactStatuses).optional(), email: z.string().max(320).optional() }).strict()).max(100).describe('Ordered contacts: name, role/job description, email. Replaces the collection; empty rows are omitted. Legacy contactName/email mirror the first row.'),
   contactName: z.string().max(300),
   email: z.string().max(320),
   lastContact: date.describe('Last contact date, YYYY-MM-DD. The year-quarter tag is generated automatically.'),
@@ -76,7 +76,7 @@ export function createMcpServer(store, companies) {
     ...optionalCardFields, id, version,
   }, ({ id: cardId, ...input }, db) => db.updateCard(cardId, input), writeAnnotations);
   tool('add_comment', 'Добавить комментарий', 'Append a comment to a card using its current version. Returns the updated card.', {
-    id, version, text: z.string().trim().min(1).max(10000),
+    id, version, text: z.string().trim().min(1).max(10000), contactIds: z.array(id).min(1).max(100).describe('At least one existing contact ID from this card.'),
   }, ({ id: cardId, ...input }, db) => db.addComment(cardId, input), writeAnnotations);
   tool('create_list', 'Создать список', 'Create a list. Cards are paginated; no 100 or 500-card list cap is imposed.', {
     name: z.string().trim().min(1).max(100), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),

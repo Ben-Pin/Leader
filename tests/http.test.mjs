@@ -15,7 +15,7 @@ test('HTTP card workflow, revisions, origin protection and filters', async () =>
     const bootstrap = await (await fetch(`${origin}/api/bootstrap`)).json();
     assert.equal(bootstrap.csrfToken, 'test-token');
     assert.ok(bootstrap.lists.length);
-    const body = { title: 'HTTP acceptance example', listId: bootstrap.lists[0].id, country: 'Нидерланды', lastContact: '2026-09-30' };
+    const body = { title: 'HTTP acceptance example', contactName: 'QA contact', listId: bootstrap.lists[0].id, country: 'Нидерланды', lastContact: '2026-09-30' };
     const blocked = await fetch(`${origin}/api/cards`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal(blocked.status, 403);
     const alien = await fetch(`${origin}/api/cards`, { method: 'POST', headers: { ...headers, Origin: 'https://unrelated.invalid' }, body: JSON.stringify(body) });
@@ -46,7 +46,7 @@ test('HTTP card workflow, revisions, origin protection and filters', async () =>
       request.on('error', reject);
     });
     assert.equal(spoofStatus, 403);
-    const comment = await fetch(`${origin}/api/cards/${card.id}/comments`, { method: 'POST', headers, body: JSON.stringify({ version: updated.version, text: 'HTTP history check' }) });
+    const comment = await fetch(`${origin}/api/cards/${card.id}/comments`, { method: 'POST', headers, body: JSON.stringify({ version: updated.version, text: 'HTTP history check', contactIds: [updated.contacts[0].id] }) });
     assert.equal(comment.status, 201);
     assert.ok((await comment.json()).activity.some(item => item.text === 'HTTP history check'));
   } finally {

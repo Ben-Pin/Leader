@@ -53,3 +53,10 @@ TypeScript check and production build pass. Browser QA verified the exact deskto
 ## Paired fields and multiple contacts — 2026-10-02
 
 Production TypeScript/build and all 23 service, HTTP and MCP tests pass, including 10,025-card pagination. New tests cover migration from schema v6, unchanged revisions/timestamps, idempotent reopen, multiple-contact search (Unicode and literal wildcards), geography, validation rollback, stale versions, removal and primary-contact mirroring, legacy writes, export/import and old bundles. Real MCP tests create multiple contacts and search by the second email. Browser QA saved two fictional contacts and retained their names/roles/emails after reload, removed one without losing the other, and found the card by the remaining email. Desktop fields use two columns and contacts use name/role/email; at 375px there is no horizontal overflow. Four SQLite backups passed quick_check before updating the working server.
+
+
+## Contact tab, statuses and history participants — 2026-10-02
+
+Build and all 25 tests pass. Added coverage for all six statuses, invalid status rejection, missing/empty/foreign history participants, atomic rollback, multiple participants, preserved attribution after removal, export/import and v7 migration with old unlinked history. HTTP and actual MCP tests submit participant IDs. A read-only comparison against the pre-migration backup found all previous scalar fields in 212 working cards and all 3 existing history records unchanged.
+
+Browser QA confirmed Card / Contacts / History order, all six core properties, scroll reset to the top on returning to Card, default active status and saved main status, blocked note submission without participants, and a saved note displaying its participant. Contacts show name / role / email / status in one row with 32px fields at desktop and 375px widths. Logo artwork is 33.8px and globe artwork scales by 1.2; column widths are unchanged. The sidebar clips horizontal overflow from the globe halo. The working tab had an unsaved draft, so it was preserved while an updated preview was opened separately.

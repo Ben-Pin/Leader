@@ -41,8 +41,8 @@ test('company export/import roundtrips all card fields, flags, archived records,
   const manager = fixture(t);
   const clab = manager.getStore('clab'), brothers = manager.getStore('brothers-in-arms');
   const list = clab.bootstrap().lists[0], tag = clab.createTag({ name: 'Embedded' });
-  let card = clab.createCard({ title: 'Company fixture', listId: list.id, country: 'France', lastContact: '2026-09-01', tagIds: [tag.id], flags: { inQuote: { active: true, comment: 'Quote 24' } }, checklist: [{ text: 'Follow up', done: false }] });
-  card = clab.addComment(card.id, { version: card.version, text: 'Imported history must survive' });
+  let card = clab.createCard({ title: 'Company fixture', contactName: 'QA buyer', listId: list.id, country: 'France', lastContact: '2026-09-01', tagIds: [tag.id], flags: { inQuote: { active: true, comment: 'Quote 24' } }, checklist: [{ text: 'Follow up', done: false }] });
+  card = clab.addComment(card.id, { version: card.version, text: 'Imported history must survive', contactIds: [card.contacts[0].id] });
   card = clab.updateCard(card.id, { version: card.version, archived: true });
   assert.equal(brothers.bootstrap().stats.total, 0);
   assert.throws(() => brothers.getCard(card.id), e => e.status === 404);

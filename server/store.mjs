@@ -14,6 +14,7 @@ export class StoreError extends Error {
 }
 
 const stages = new Set(['lead', 'contacted', 'qualified', 'proposal', 'client']);
+export const contactStatuses = ['active', 'main', 'inactive', 'disturbing', 'useful', 'decisions'];
 export const flagKeys = ['inQuote', 'logisticsIssue', 'administrativeIssue', 'swIssue', 'hwIssue'];
 const textFields = { title: 300, description: 50000, company: 300, country: 120, secondaryCountry: 120, contactName: 300, email: 320 };
 const writableFields = new Set([...Object.keys(textFields), 'listId', 'lastContact', 'contactQuarter', 'dueDate', 'status', 'priority', 'completed', 'starred', 'archived', 'tagIds', 'checklist', 'contacts', 'flags', 'accountType', 'distributorIds']);
@@ -96,10 +97,17 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     }
     if (!cardColumns.includes('contacts')) {
       db.exec(`ALTER TABLE cards ADD COLUMN contacts TEXT NOT NULL DEFAULT '[]';
-        UPDATE cards SET contacts=json_array(json_object('id',lower(hex(randomblob(16))), 'name',contact_name,'role','','email',email))
+        UPDATE cards SET contacts=json_array(json_object('id',lower(hex(randomblob(16))), 'name',contact_name,'role','','email',email,'status','active'))
         WHERE contact_name<>'' OR email<>'';`);
     }
-    db.exec('PRAGMA user_version=7; COMMIT');
+    if (!db.prepare('PRAGMA table_info(activity)').all().some(c => c.name === 'contacts')) {
+      db.exec("ALTER TABLE activity ADD COLUMN contacts TEXT NOT NULL DEFAULT '[]'");
+      const migrate = db.prepare('UPDATE cards SET contacts=? WHERE id=?');
+      for (const row of db.prepare('SELECT id,contacts FROM cards').all()) {
+        migrate.run(JSON.stringify(JSON.parse(row.contacts).map(contact => ({...contact, status:contact.status || 'active'}))), row.id);
+      }
+    }
+    db.exec('PRAGMA user_version=8; COMMIT');
   } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
   const statements = new Map();
   const sql = (query) => {
@@ -141,7 +149,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         return [kind, { active: Boolean(flag?.active), comment: flag?.comment || '', activatedAt: flag?.activated_at || null }];
       })),
       checklist: sql('SELECT id,text,done FROM checklist_items WHERE card_id=? ORDER BY position').all(row.id).map(item => ({ ...item, done: Boolean(item.done) })),
-      activity: sql('SELECT id,text,created_at AS createdAt FROM activity WHERE card_id=? ORDER BY created_at DESC,id DESC').all(row.id),
+      activity: sql('SELECT id,text,created_at AS createdAt,contacts FROM activity WHERE card_id=? ORDER BY created_at DESC,id DESC').all(row.id).map(entry => ({...entry, contacts:JSON.parse(entry.contacts)})),
     };
   };
   const validate = (input, creating = false) => {
@@ -172,7 +180,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       const seen = new Set();
       result.contacts = input.contacts.map(contact => {
         requireObject(contact);
-        if (Object.keys(contact).some(key => !['id', 'name', 'role', 'email'].includes(key))) throw new StoreError('Неизвестное поле контакта.');
+        if (Object.keys(contact).some(key => !['id', 'name', 'role', 'email', 'status'].includes(key))) throw new StoreError('Неизвестное поле контакта.');
         const id = contact.id === undefined ? randomUUID() : string(contact.id, 'contact.id', 100, true);
         if (seen.has(id)) throw new StoreError('Идентификаторы контактов должны быть уникальны.');
         seen.add(id);
@@ -180,7 +188,9 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         const role = string(contact.role ?? '', 'contact.role', 500);
         const email = string(contact.email ?? '', 'contact.email', 320);
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new StoreError('Некорректный адрес электронной почты контакта.');
-        return { id, name, role, email };
+        const status = contact.status ?? 'active';
+        if (!contactStatuses.includes(status)) throw new StoreError('Неизвестный статус контакта.');
+        return { id, name, role, email, status };
       }).filter(contact => contact.name || contact.role || contact.email);
     }
     if ('listId' in input) {
@@ -237,7 +247,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       let contacts = value.contacts;
       if (!contacts) {
         contacts = JSON.parse(row.contacts);
-        const first = contacts[0] || { id: randomUUID(), name: '', role: '', email: '' };
+        const first = contacts[0] || { id: randomUUID(), name: '', role: '', email: '', status: 'active' };
         contacts = [{ ...first, name: row.contact_name, email: row.email }, ...contacts.slice(1)]
           .filter(contact => contact.name || contact.role || contact.email);
       }
@@ -356,7 +366,14 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         checkVersion(row, input.version);
         const text = string(input.text, 'text', 10000, true);
         const now = new Date().toISOString();
-        sql('INSERT INTO activity(id,card_id,text,created_at) VALUES(?,?,?,?)').run(randomUUID(), id, text, now);
+        if (!Array.isArray(input.contactIds) || !input.contactIds.length || input.contactIds.length > 100) throw new StoreError('Выберите хотя бы один контакт для записи истории.');
+        const available = JSON.parse(row.contacts);
+        const contacts = [...new Set(input.contactIds.map(value => string(value, 'contactId', 100, true)))].map(contactId => {
+          const contact = available.find(person => person.id === contactId);
+          if (!contact) throw new StoreError('Контакт не найден в этой карточке.');
+          return contact;
+        });
+        sql('INSERT INTO activity(id,card_id,text,created_at,contacts) VALUES(?,?,?,?,?)').run(randomUUID(), id, text, now, JSON.stringify(contacts));
         sql('UPDATE cards SET version=version+1,updated_at=? WHERE id=?').run(now, id);
         return service.getCard(id);
       });
@@ -431,7 +448,11 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
           sql('UPDATE cards SET version=?,created_at=?,updated_at=? WHERE id=?').run(record.version, timestamp(record.createdAt), timestamp(record.updatedAt), card.id);
           sql('UPDATE cards SET starred_at=? WHERE id=?').run(record.starredAt ? timestamp(record.starredAt) : null, card.id);
           for (const [kind,flag] of Object.entries(record.flags || {})) sql('UPDATE card_flags SET activated_at=? WHERE card_id=? AND kind=?').run(flag.activatedAt ? timestamp(flag.activatedAt) : null,card.id,kind);
-          for (const entry of record.activity) sql('INSERT INTO activity(id,card_id,text,created_at) VALUES(?,?,?,?)').run(string(entry.id, 'activity.id', 100, true), card.id, string(entry.text, 'activity.text', 10000, true), timestamp(entry.createdAt));
+          for (const entry of record.activity) {
+            requireObject(entry);
+            const contacts = entry.contacts === undefined ? [] : validate({contacts:entry.contacts}).contacts;
+            sql('INSERT INTO activity(id,card_id,text,created_at,contacts) VALUES(?,?,?,?,?)').run(string(entry.id, 'activity.id', 100, true), card.id, string(entry.text, 'activity.text', 10000, true), timestamp(entry.createdAt), JSON.stringify(contacts));
+          }
         }
         for (const record of bundle.cards) if (record.distributorIds) saveCollections(record.id, validate({ distributorIds: record.distributorIds }));
         sql("INSERT OR REPLACE INTO metadata(key,value) VALUES('initialized','true')").run();

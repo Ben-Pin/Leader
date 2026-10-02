@@ -11,7 +11,7 @@ import { Relationships } from './Relationships';
 import { ClientGlobe } from './ClientGlobe';
 import { countryNames,tagCategory } from './geography';
 import './workspaces.css';
-import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag, FlagKey, CompanyDatabase } from './types';
+import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag, FlagKey, CompanyDatabase, ContactStatus } from './types';
 
 const workFlags: { key: FlagKey; label: string; Icon: typeof DollarSign | typeof TuxIcon }[] = [
   { key: 'inQuote', label: 'In quote', Icon: DollarSign },
@@ -28,6 +28,8 @@ const statuses: { value: LeadStatus; label: string; color: string }[] = [
   { value: 'proposal', label: 'Предложение', color: '#d99841' },
   { value: 'client', label: 'Клиент', color: '#42a481' },
 ];
+const contactStatuses: ContactStatus[] = ['active', 'main', 'inactive', 'disturbing', 'useful', 'decisions'];
+const contactStatusLabel = (status: ContactStatus) => status === 'inactive' ? 'inactive (уволился)' : status;
 const palette = ['#5475d9', '#749ce8', '#36a885', '#9bb342', '#dca249', '#e97965', '#cc75a2', '#9671c8', '#8993a7'];
 const dateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
 const fullDateFormat = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -110,13 +112,18 @@ export default function App() {
   const [savePrompt, setSavePrompt] = useState(false);
   const pendingDecision = useRef<((proceed: boolean) => void) | null>(null);
   const [toast, setToast] = useState('');
-  const [detailTab, setDetailTab] = useState<'card' | 'activity'>('card');
+  const [detailTab, setDetailTab] = useState<'card' | 'contacts' | 'activity'>('card');
   const [tagPicker, setTagPicker] = useState(false);
   const [showTags, setShowTags] = useState(true);
   const [showLists, setShowLists] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [checkText, setCheckText] = useState('');
   const [comment, setComment] = useState('');
+  const [commentContacts, setCommentContacts] = useState<string[]>([]);
+  const detailScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { detailScrollRef.current?.scrollTo({top:0}); }, [detailTab, selected?.id]);
+  const eligibleContacts = draft?.contacts.filter(c => c.name.trim() || c.email.trim() || c.role.trim()) || [];
+  const commentContactIds = commentContacts.filter(id => eligibleContacts.some(c => c.id === id));
   const searchRef = useRef<HTMLInputElement>(null);
   const detailRequest = useRef(0);
   const listRequest = useRef(0);
@@ -197,7 +204,7 @@ export default function App() {
     if (!skipGuard && selected?.id === card.id) return;
     if (!skipGuard && !(await guardChanges())) return;
     const sequence = ++detailRequest.current;
-    setSelected(card); setDraft(draftFrom(card)); setSaveError(''); setConflict(false); setDetailTab('card'); setTagPicker(false); setComment(''); setCheckText('');
+    setSelected(card); setDraft(draftFrom(card)); setSaveError(''); setConflict(false); setDetailTab('card'); setTagPicker(false); setComment(''); setCommentContacts([]); setCheckText('');
     setDetailLoading(true);
     try {
       const fresh = await request<Card>(`/cards/${encodeURIComponent(card.id)}`);
@@ -268,12 +275,13 @@ export default function App() {
   const addComment = async (e: FormEvent) => {
     e.preventDefault();
     if (!selected || !comment.trim() || saving) return;
+    if (!commentContactIds.length) { setSaveError('Выберите хотя бы один контакт для записи истории.'); return; }
     let current = selected;
     if (dirty) { const saved = await saveDraft(); if (!saved) return; current = saved; }
     setSaving(true); setSaveError('');
     try {
-      const result = await request<Card>(`/cards/${current.id}/comments`, { method: 'POST', body: { text: comment.trim(), version: current.version }, token: bootstrap?.csrfToken });
-      reconcile(result); setComment(''); setToast('Заметка добавлена');
+      const result = await request<Card>(`/cards/${current.id}/comments`, { method: 'POST', body: { text: comment.trim(), version: current.version, contactIds: commentContactIds }, token: bootstrap?.csrfToken });
+      reconcile(result); setComment(''); setCommentContacts([]); setToast('Заметка добавлена');
     } catch (e) { setSaveError(errorText(e)); }
     finally { setSaving(false); }
   };
@@ -368,7 +376,7 @@ export default function App() {
         <div className="traffic-lights" aria-label="Флаги карточки">{workFlags.map(({ key, label, Icon }) => <button key={key} role="checkbox" className={`signal-button ${key} ${draft.flags[key].active ? 'selected' : ''}`} aria-label={`Флаг ${label}`} title={label} aria-checked={draft.flags[key].active} onClick={() => updateDraft('flags', { ...draft.flags, [key]: { ...draft.flags[key], active: !draft.flags[key].active } })} disabled={saving || detailLoading}><Icon size={16}/></button>)}</div>
         <span className="toolbar-divider"/><IconButton label="Закрыть карточку" onClick={closeCard}><X size={19}/></IconButton>
       </div></div>
-      <div className="detail-scroll">
+      <div className="detail-scroll" ref={detailScrollRef}>
         {workFlags.some(({ key }) => draft.flags[key].active) && <div className="card-work-flags" aria-label="Комментарии флагов">
           {workFlags.filter(({ key }) => draft.flags[key].active).map(({ key, label }) => <div className={`signal-comment ${key}`} key={key}><span className="signal-dot"/><input className="flag-comment" aria-label={`Комментарий ${label}`} title={label} placeholder="…" maxLength={300} value={draft.flags[key].comment} onChange={e => updateDraft('flags', { ...draft.flags, [key]: { ...draft.flags[key], comment: e.target.value } })} disabled={saving || detailLoading}/></div>)}
         </div>}
@@ -376,7 +384,11 @@ export default function App() {
         <textarea className="detail-title" rows={2} value={draft.title} onChange={e => updateDraft('title', e.target.value)} aria-label="Название карточки" placeholder="Название компании" disabled={detailLoading}/>
         <div className="detail-tag-row">{draftTags.map(tag => <span className="removable-tag" key={tag.id}><Badge tag={tag}/><button aria-label={`Убрать тег ${tag.name}`} title={tag.id.startsWith('quarter:')?'Очистить дату и квартал контакта':'Убрать из карточки'} disabled={detailLoading} onClick={()=>{if(tag.id.startsWith('quarter:')){setDraft(d=>d?{...d,lastContact:'',contactQuarter:null}:d);setToast('Дата и квартал очищены в черновике. Нажмите Save.');}else updateDraft('tagIds',draft.tagIds.filter(id=>id!==tag.id));}}><X size={11}/></button></span>)}<button className={`add-tag-button ${tagPicker ? 'active' : ''}`} aria-label="Изменить теги" onClick={() => setTagPicker(!tagPicker)} disabled={detailLoading}><Plus size={13}/>{draftTags.length === 0 ? 'Добавить теги' : ''}</button></div>
         {tagPicker && <div className="tag-picker"><span className="picker-heading">Теги карточки</span>{ordinaryTags.length ? ordinaryTags.map(tag => <label key={tag.id}><input type="checkbox" checked={draft.tagIds.includes(tag.id)} onChange={e => updateDraft('tagIds', e.target.checked ? [...draft.tagIds, tag.id] : draft.tagIds.filter(id => id !== tag.id))}/><TagIcon size={14} style={{ color: tag.color }}/>{tag.name}</label>) : <p>Создайте первый тег, чтобы объединять карточки.</p>}<button className="text-button" onClick={() => setModal('tag')}><Plus size={14}/>Создать тег</button><div className="picker-note">Тег квартала появится автоматически из даты последнего контакта.</div></div>}
-        <div className="detail-tabs"><button className={detailTab === 'card' ? 'active' : ''} onClick={() => setDetailTab('card')}>Карточка</button><button className={detailTab === 'activity' ? 'active' : ''} onClick={() => setDetailTab('activity')}>История<span>{selected.activity.length}</span></button></div>
+        <div className="detail-tabs" role="tablist" aria-label="Разделы карточки">
+          <button role="tab" aria-selected={detailTab === 'card'} className={detailTab === 'card' ? 'active' : ''} onClick={() => setDetailTab('card')}>Карточка</button>
+          <button role="tab" aria-selected={detailTab === 'contacts'} className={detailTab === 'contacts' ? 'active' : ''} onClick={() => setDetailTab('contacts')}>Контакты<span>{draft.contacts.length}</span></button>
+          <button role="tab" aria-selected={detailTab === 'activity'} className={detailTab === 'activity' ? 'active' : ''} onClick={() => setDetailTab('activity')}>История<span>{selected.activity.length}</span></button>
+        </div>
         {detailTab === 'card' ? <div className="detail-card-content">
           <div className="properties">
             <Property icon={<Globe2 size={15}/>} label="Страна"><input list="country-options" value={draft.country} onChange={e => updateDraft('country', e.target.value)} placeholder="Не указана" aria-label="Страна клиента" disabled={detailLoading}/></Property>
@@ -393,19 +405,23 @@ export default function App() {
             {draft.checklist.map(item => <div className={`checklist-item ${item.done ? 'done' : ''}`} key={item.id}><button className={`completion-control ${item.done ? 'is-checked' : ''}`} aria-label={`${item.done ? 'Отменить' : 'Выполнить'} шаг: ${item.text}`} onClick={() => updateDraft('checklist', draft.checklist.map(c => c.id === item.id ? { ...c, done: !c.done } : c))} disabled={detailLoading}>{item.done && <Check size={11}/>}</button><input aria-label="Текст следующего шага" value={item.text} onChange={e => updateDraft('checklist', draft.checklist.map(c => c.id === item.id ? { ...c, text: e.target.value } : c))} disabled={detailLoading}/><IconButton label={`Удалить шаг: ${item.text}`} onClick={() => updateDraft('checklist', draft.checklist.filter(c => c.id !== item.id))} disabled={detailLoading}><X size={13}/></IconButton></div>)}
             <form className="add-checklist" onSubmit={e => { e.preventDefault(); if (!checkText.trim()) return; updateDraft('checklist', [...draft.checklist, { id: crypto.randomUUID(), text: checkText.trim(), done: false }]); setCheckText(''); }}><Plus size={15}/><input aria-label="Добавить следующий шаг" placeholder="Добавить шаг" value={checkText} onChange={e => setCheckText(e.target.value)} disabled={detailLoading}/>{checkText.trim() && <button type="submit">Добавить</button>}</form>
           </section>
+          {selected.activity.length > 0 && <button className="last-activity" onClick={() => setDetailTab('activity')}><MessageSquare size={15}/><span><strong>Последняя заметка</strong><span>{selected.activity[0].text}</span></span><ChevronRight size={15}/></button>}
+        </div> : detailTab === 'contacts' ? <div className="contacts-content">
           <section className="detail-section contacts-section" aria-label="Контакты компании">
             <div className="detail-section-heading"><h3>Контакты</h3><span>{draft.contacts.length}</span></div>
             {draft.contacts.map((contact, index) => <div className="contact-row" key={contact.id}>
               <label>Имя<input value={contact.name} maxLength={300} placeholder="Имя и фамилия" aria-label={`Имя контакта ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, name:e.target.value} : c))} disabled={detailLoading || saving}/></label>
-              <label>Должность<textarea value={contact.role} maxLength={500} rows={1} placeholder="Должность / роль" aria-label={`Должность контакта ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, role:e.target.value} : c))} disabled={detailLoading || saving}/></label>
+              <label>Должность<input value={contact.role} maxLength={500} placeholder="Должность / роль" aria-label={`Должность контакта ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, role:e.target.value} : c))} disabled={detailLoading || saving}/></label>
               <label>Email<input type="email" value={contact.email} maxLength={320} placeholder="name@company.com" aria-label={`Email контакта ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, email:e.target.value} : c))} disabled={detailLoading || saving}/></label>
+              <label className="contact-status">Статус<select aria-label={`Статус контакта ${index + 1}`} value={contact.status} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c,status:e.target.value as ContactStatus} : c))} disabled={detailLoading || saving}>{contactStatuses.map(status => <option key={status} value={status}>{contactStatusLabel(status)}</option>)}</select></label>
               <IconButton label={`Удалить контакт ${index + 1}`} onClick={() => updateDraft('contacts', draft.contacts.filter(c => c.id !== contact.id))} disabled={detailLoading || saving}><X size={14}/></IconButton>
             </div>)}
-            <button className="text-button add-contact" disabled={detailLoading || saving || draft.contacts.length >= 100} onClick={() => updateDraft('contacts', [...draft.contacts, {id:crypto.randomUUID(),name:'',role:'',email:''}])}><Plus size={15}/>Добавить контакт</button>
+            <button className="text-button add-contact" disabled={detailLoading || saving || draft.contacts.length >= 100} onClick={() => updateDraft('contacts', [...draft.contacts, {id:crypto.randomUUID(),name:'',role:'',email:'',status:'active'}])}><Plus size={15}/>Добавить контакт</button>
           </section>
-          {selected.activity.length > 0 && <button className="last-activity" onClick={() => setDetailTab('activity')}><MessageSquare size={15}/><span><strong>Последняя заметка</strong><span>{selected.activity[0].text}</span></span><ChevronRight size={15}/></button>}
-        </div> : <div className="activity-content"><p className="activity-description">Контекст и договорённости, к которым можно вернуться.</p>{selected.activity.length ? <div className="activity-list">{selected.activity.map(item => <article className="activity-item" key={item.id}><span className="activity-dot"/><div><time>{formatDate(item.createdAt, true)}{item.createdAt.includes('T') ? ` · ${new Date(item.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : ''}</time><p>{item.text}</p></div></article>)}</div> : <div className="activity-empty"><MessageSquare size={25}/><p>Пока нет заметок</p><span>Сохраните результат первого разговора.</span></div>}
-          <form className="comment-form" onSubmit={addComment}><textarea aria-label="Новая заметка" placeholder="Как прошёл разговор?" value={comment} onChange={e => setComment(e.target.value)} rows={3}/><button type="submit" className="primary-button" disabled={!comment.trim() || saving || detailLoading}>{saving ? <LoaderCircle size={14} className="spin"/> : <Plus size={14}/>}Добавить заметку</button></form>
+        </div> : <div className="activity-content"><p className="activity-description">Контекст и договорённости, к которым можно вернуться.</p>{selected.activity.length ? <div className="activity-list">{selected.activity.map(item => <article className="activity-item" key={item.id}><span className="activity-dot"/><div><time>{formatDate(item.createdAt, true)}{item.createdAt.includes('T') ? ` · ${new Date(item.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : ''}</time><p>{item.text}</p><div className="activity-contacts">{item.contacts.length ? item.contacts.map(contact => <span key={contact.id} title={[contact.role,contact.email,contactStatusLabel(contact.status)].filter(Boolean).join(' · ')}>{contact.name || contact.email || contact.role}</span>) : <small>Старая запись без контактов</small>}</div></div></article>)}</div> : <div className="activity-empty"><MessageSquare size={25}/><p>Пока нет заметок</p><span>Сохраните результат первого разговора.</span></div>}
+          <form className="comment-form" onSubmit={addComment}>
+            <fieldset className="comment-contacts"><legend>Участники · выберите хотя бы одного</legend>{eligibleContacts.length ? eligibleContacts.map(contact => <label key={contact.id}><input type="checkbox" checked={commentContactIds.includes(contact.id)} onChange={e => setCommentContacts(ids => e.target.checked ? [...ids, contact.id] : ids.filter(id => id !== contact.id))} disabled={saving || detailLoading}/><span>{contact.name || contact.email || contact.role}<small>{[contact.role, contact.email, contactStatusLabel(contact.status)].filter(Boolean).join(' · ')}</small></span></label>) : <p>Сначала <button type="button" className="text-button" onClick={() => setDetailTab('contacts')}>добавьте контакт</button> во вкладке «Контакты».</p>}</fieldset>
+            <textarea aria-label="Новая заметка" placeholder="Как прошёл разговор?" value={comment} onChange={e => setComment(e.target.value)} rows={3}/><button type="submit" className="primary-button" disabled={!comment.trim() || !commentContactIds.length || saving || detailLoading}>{saving ? <LoaderCircle size={14} className="spin"/> : <Plus size={14}/>}Добавить заметку</button></form>
         </div>}
       </div>
       {saveError && <div className="save-error" role="alert">{saveError}{conflict && <button onClick={async () => { if (await guardChanges()) openCard(selected, true); }}>Загрузить актуальную версию</button>}</div>}
