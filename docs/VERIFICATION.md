@@ -48,3 +48,8 @@ Production build and all 21 automated tests pass, including a v5-to-v6 SQLite mi
 ## Wider detail card — 2026-10-02
 
 TypeScript check and production build pass. Browser QA verified the exact desktop redistribution: at 1575px, the list changes from 837px to 558px and details from 430px to 709px; at 1280px the new widths are approximately 411px and 587px. At 1100px neither pane overflows horizontally, and at 375px the detail card fills the screen with its five flags and Save accessible. In the isolated fixture, a long title grows to three lines, a twelve-line description grows to 557px without an internal scrollbar and shrinks to 64px for a short note, and a six-line draft history note grows to 154px. The working preview was refreshed without unsaved edits and reports no browser console errors. No database or service logic changed.
+
+
+## Paired fields and multiple contacts — 2026-10-02
+
+Production TypeScript/build and all 23 service, HTTP and MCP tests pass, including 10,025-card pagination. New tests cover migration from schema v6, unchanged revisions/timestamps, idempotent reopen, multiple-contact search (Unicode and literal wildcards), geography, validation rollback, stale versions, removal and primary-contact mirroring, legacy writes, export/import and old bundles. Real MCP tests create multiple contacts and search by the second email. Browser QA saved two fictional contacts and retained their names/roles/emails after reload, removed one without losing the other, and found the card by the remaining email. Desktop fields use two columns and contacts use name/role/email; at 375px there is no horizontal overflow. Four SQLite backups passed quick_check before updating the working server.

@@ -16,6 +16,7 @@ const cardFields = {
   company: z.string().max(300),
   country: z.string().max(120),
   secondaryCountry: z.string().max(120),
+  contacts: z.array(z.object({ id: id.optional(), name: z.string().max(300).optional(), role: z.string().max(500).optional(), email: z.string().max(320).optional() }).strict()).max(100).describe('Ordered contacts: name, role/job description, email. Replaces the collection; empty rows are omitted. Legacy contactName/email mirror the first row.'),
   contactName: z.string().max(300),
   email: z.string().max(320),
   lastContact: date.describe('Last contact date, YYYY-MM-DD. The year-quarter tag is generated automatically.'),

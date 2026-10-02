@@ -46,3 +46,6 @@ MCP uses the same operations with schemas, stable IDs, and revision precondition
 In normal multi-company mode MCP adds list_companies, create_company, export_company and import_company; existing scoped tools require companyId. Flags and view filters use the same service validation as the browser.
 
 - GET `/geography` -> `{countries:[{country,count}],total}`. Accepts the same selection filters as `/cards`: `listId`, `view`, `tag`, `q`, `country`, `accountType`, `distributorId`. Pagination and sorting do not restrict geography totals. The selected company is scoped through `X-Leader-Company`. The country directory uses `/cards` with the original filters plus `country` and bounded pagination.
+
+
+`contacts`: ordered array of `{id,name,role,email}` (maximum 100). IDs are optional on input and generated when omitted; name <=300, role <=500, email <=320 characters. Each nonempty email is validated. Empty rows are omitted. Providing contacts replaces the complete collection; omitting it preserves contacts. Legacy `contactName`/`email` remain first-contact mirrors: legacy patches update only the first contact and retain its role and other contacts. If both formats are supplied, contacts takes precedence. All changes use the card revision and shared HTTP/MCP service; portable export/import includes contacts and accepts older single-contact packages.

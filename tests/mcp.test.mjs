@@ -63,8 +63,10 @@ test('real stdio MCP client shares persistent cards, detects conflicts, and rest
   assert.equal(page.items[0].id, card.id);
   assert.equal((await call('search_cards', { listId: secondList.id, limit: 1, offset: 1 })).items.length, 0);
 
-  const updated = await call('update_card', { id: card.id, version: card.version, title: 'Updated over MCP', lastContact: '2024-05-03', starred: true });
+  const updated = await call('update_card', { id: card.id, version: card.version, title: 'Updated over MCP', contacts: [{name:'QA buyer',role:'Purchasing',email:'buyer@demo.example'},{name:'QA engineer',role:'Engineering',email:'engineer@demo.example'}], lastContact: '2024-05-03', starred: true });
   assert.ok(updated.version > card.version);
+  assert.equal(store.getCard(card.id).contacts[1].role, 'Engineering');
+  assert.equal((await call('search_cards', {q:'engineer@demo.example'})).items[0].id, card.id);
   assert.equal(updated.tags[0].id, 'quarter:2024-2');
   const stale = await client.callTool({ name: 'update_card', arguments: { id: card.id, version: card.version, title: 'Stale overwrite' } });
   assert.equal(stale.isError, true);

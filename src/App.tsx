@@ -47,7 +47,7 @@ function quarterTag(date: string): Tag | null {
 }
 function draftFrom(card: Card): CardDraft {
   return { title: card.title, listId: card.listId, description: card.description || '', company: card.company || '',
-    country: card.country || '', secondaryCountry: card.secondaryCountry || '', contactQuarter: card.contactQuarter, contactName: card.contactName || '', email: card.email || '', lastContact: card.lastContact || '',
+    country: card.country || '', secondaryCountry: card.secondaryCountry || '', contactQuarter: card.contactQuarter, contacts: card.contacts || [], lastContact: card.lastContact || '',
     dueDate: card.dueDate || '', status: card.status, priority: card.priority,
     tagIds: card.tags.filter(t => !t.id.startsWith('quarter:')).map(t => t.id), checklist: card.checklist || [], flags: Object.fromEntries(workFlags.map(({key})=>[key,{active:card.flags[key].active,comment:card.flags[key].comment}])) as CardDraft['flags'],
     accountType: card.accountType, distributorIds: card.distributorIds };
@@ -224,7 +224,7 @@ export default function App() {
   const saveDraft = async (): Promise<Card | null> => {
     if (!selected || !draft || saving) return null;
     if (!draft.title.trim()) { setSaveError('Укажите название карточки.'); return null; }
-    if (draft.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) { setSaveError('Проверьте адрес электронной почты.'); return null; }
+    if (draft.contacts.some(contact => contact.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim()))) { setSaveError('Проверьте адрес электронной почты.'); return null; }
     setSaving(true); setSaveError(''); setConflict(false);
     try {
       const result = await writeCard(selected, { ...draft, title: draft.title.trim() });
@@ -381,8 +381,6 @@ export default function App() {
           <div className="properties">
             <Property icon={<Globe2 size={15}/>} label="Страна"><input list="country-options" value={draft.country} onChange={e => updateDraft('country', e.target.value)} placeholder="Не указана" aria-label="Страна клиента" disabled={detailLoading}/></Property>
             <Property icon={<Globe2 size={15}/>} label="Вторая страна"><input list="country-options" value={draft.secondaryCountry} onChange={e => updateDraft('secondaryCountry', e.target.value)} placeholder="Необязательно" aria-label="Вторая страна клиента" disabled={detailLoading}/></Property>
-            <Property icon={<UserRound size={15}/>} label="Контакт"><input value={draft.contactName} onChange={e => updateDraft('contactName', e.target.value)} placeholder="Имя и фамилия" aria-label="Контактное лицо" disabled={detailLoading}/></Property>
-            <Property icon={<Mail size={15}/>} label="Почта"><input type="email" value={draft.email} onChange={e => updateDraft('email', e.target.value)} placeholder="name@company.com" aria-label="Электронная почта" disabled={detailLoading}/></Property>
             <Property icon={<Circle size={15}/>} label="Этап"><div className="status-select" style={{ '--status-color': statuses.find(s => s.value === draft.status)?.color } as CSSProperties}><span/><select value={draft.status} onChange={e => updateDraft('status', e.target.value as LeadStatus)} aria-label="Этап работы" disabled={detailLoading}>{statuses.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div></Property>
             <Property icon={<Flag size={15}/>} label="Приоритет"><select value={draft.priority} onChange={e => updateDraft('priority', Number(e.target.value))} aria-label="Приоритет карточки" className={`priority-select priority-${draft.priority}`} disabled={detailLoading}><option value={0}>Без приоритета</option><option value={1}>Низкий</option><option value={2}>Средний</option><option value={3}>Высокий</option></select></Property>
             <Property icon={<Clock3 size={15}/>} label="Контакт был"><input type="date" value={draft.lastContact} onChange={e => updateDraft('lastContact', e.target.value)} aria-label="Дата последнего контакта" disabled={detailLoading}/></Property>
@@ -394,6 +392,16 @@ export default function App() {
             {draft.checklist.length > 0 && <div className="checklist-progress"><span style={{ width: `${draft.checklist.filter(item => item.done).length / draft.checklist.length * 100}%` }}/></div>}
             {draft.checklist.map(item => <div className={`checklist-item ${item.done ? 'done' : ''}`} key={item.id}><button className={`completion-control ${item.done ? 'is-checked' : ''}`} aria-label={`${item.done ? 'Отменить' : 'Выполнить'} шаг: ${item.text}`} onClick={() => updateDraft('checklist', draft.checklist.map(c => c.id === item.id ? { ...c, done: !c.done } : c))} disabled={detailLoading}>{item.done && <Check size={11}/>}</button><input aria-label="Текст следующего шага" value={item.text} onChange={e => updateDraft('checklist', draft.checklist.map(c => c.id === item.id ? { ...c, text: e.target.value } : c))} disabled={detailLoading}/><IconButton label={`Удалить шаг: ${item.text}`} onClick={() => updateDraft('checklist', draft.checklist.filter(c => c.id !== item.id))} disabled={detailLoading}><X size={13}/></IconButton></div>)}
             <form className="add-checklist" onSubmit={e => { e.preventDefault(); if (!checkText.trim()) return; updateDraft('checklist', [...draft.checklist, { id: crypto.randomUUID(), text: checkText.trim(), done: false }]); setCheckText(''); }}><Plus size={15}/><input aria-label="Добавить следующий шаг" placeholder="Добавить шаг" value={checkText} onChange={e => setCheckText(e.target.value)} disabled={detailLoading}/>{checkText.trim() && <button type="submit">Добавить</button>}</form>
+          </section>
+          <section className="detail-section contacts-section" aria-label="Контакты компании">
+            <div className="detail-section-heading"><h3>Контакты</h3><span>{draft.contacts.length}</span></div>
+            {draft.contacts.map((contact, index) => <div className="contact-row" key={contact.id}>
+              <label>Имя<input value={contact.name} maxLength={300} placeholder="Имя и фамилия" aria-label={`Имя контакта ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, name:e.target.value} : c))} disabled={detailLoading || saving}/></label>
+              <label>Должность<textarea value={contact.role} maxLength={500} rows={1} placeholder="Должность / роль" aria-label={`Должность контакта ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, role:e.target.value} : c))} disabled={detailLoading || saving}/></label>
+              <label>Email<input type="email" value={contact.email} maxLength={320} placeholder="name@company.com" aria-label={`Email контакта ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, email:e.target.value} : c))} disabled={detailLoading || saving}/></label>
+              <IconButton label={`Удалить контакт ${index + 1}`} onClick={() => updateDraft('contacts', draft.contacts.filter(c => c.id !== contact.id))} disabled={detailLoading || saving}><X size={14}/></IconButton>
+            </div>)}
+            <button className="text-button add-contact" disabled={detailLoading || saving || draft.contacts.length >= 100} onClick={() => updateDraft('contacts', [...draft.contacts, {id:crypto.randomUUID(),name:'',role:'',email:''}])}><Plus size={15}/>Добавить контакт</button>
           </section>
           {selected.activity.length > 0 && <button className="last-activity" onClick={() => setDetailTab('activity')}><MessageSquare size={15}/><span><strong>Последняя заметка</strong><span>{selected.activity[0].text}</span></span><ChevronRight size={15}/></button>}
         </div> : <div className="activity-content"><p className="activity-description">Контекст и договорённости, к которым можно вернуться.</p>{selected.activity.length ? <div className="activity-list">{selected.activity.map(item => <article className="activity-item" key={item.id}><span className="activity-dot"/><div><time>{formatDate(item.createdAt, true)}{item.createdAt.includes('T') ? ` · ${new Date(item.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : ''}</time><p>{item.text}</p></div></article>)}</div> : <div className="activity-empty"><MessageSquare size={25}/><p>Пока нет заметок</p><span>Сохраните результат первого разговора.</span></div>}

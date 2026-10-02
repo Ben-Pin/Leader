@@ -38,3 +38,8 @@ The sidebar globe follows the current list, flag/tag filter and global search. A
 The globe has no visible captions and uses its full sidebar width. Selecting a card or country rotates along the shortest great-circle route with eased motion (650–1100 ms); dragging interrupts the transition. Reduced-motion preferences disable automatic animation. The left icon rail uses a single silver stroke style, including the chip logo, on the original blue (#405ba5) background, with glass shading and an inset selected state.
 
 Geography data: Natural Earth, distributed via `world-atlas` and `topojson-client`.
+
+
+## Contact rows
+
+Core card properties are paired: country/second country, stage/priority, last contact/next step. Contacts form the final editable section with repeatable name, role/job description, and email rows. Add/remove rows and commit with Save; Cancel restores the original contacts. Up to 100 contacts per card. Empty rows are omitted on save. Names, roles and emails from all contacts participate in global search and filtered geography. On phones the name and role share a row with email below; basic properties remain paired. Existing single contacts are retained automatically.

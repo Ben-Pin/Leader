@@ -8,9 +8,11 @@ export type CardFlags = Record<FlagKey, { active: boolean; comment: string; acti
 export interface CompanyDatabase { id: string; name: string }
 export type AccountType = 'unspecified' | 'client' | 'distributor' | 'partner';
 export interface RelatedCard { id: string; title: string; country: string; archived: boolean }
+export interface Contact { id: string; name: string; role: string; email: string }
 export interface Card {
   id: string; listId: string; title: string; description: string; company: string;
   country: string; secondaryCountry: string; contactName: string; email: string; lastContact: string | null;
+  contacts: Contact[];
   contactQuarter: string | null;
   dueDate: string | null; status: LeadStatus; priority: number; completed: boolean;
   starred: boolean; starredAt: string | null; archived: boolean; version: number; createdAt: string; updatedAt: string;
@@ -27,7 +29,7 @@ export interface Bootstrap {
 export interface CardPage { items: Card[]; total: number; limit: number; offset: number }
 export interface CardDraft {
   title: string; listId: string; description: string; company: string; country: string; secondaryCountry: string; contactQuarter: string | null;
-  contactName: string; email: string; lastContact: string; dueDate: string;
+  contacts: Contact[]; lastContact: string; dueDate: string;
   status: LeadStatus; priority: number; tagIds: string[]; checklist: ChecklistItem[];
   flags: CardFlags;
   accountType: AccountType; distributorIds: string[];

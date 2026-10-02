@@ -16,7 +16,7 @@ export class StoreError extends Error {
 const stages = new Set(['lead', 'contacted', 'qualified', 'proposal', 'client']);
 export const flagKeys = ['inQuote', 'logisticsIssue', 'administrativeIssue', 'swIssue', 'hwIssue'];
 const textFields = { title: 300, description: 50000, company: 300, country: 120, secondaryCountry: 120, contactName: 300, email: 320 };
-const writableFields = new Set([...Object.keys(textFields), 'listId', 'lastContact', 'contactQuarter', 'dueDate', 'status', 'priority', 'completed', 'starred', 'archived', 'tagIds', 'checklist', 'flags', 'accountType', 'distributorIds']);
+const writableFields = new Set([...Object.keys(textFields), 'listId', 'lastContact', 'contactQuarter', 'dueDate', 'status', 'priority', 'completed', 'starred', 'archived', 'tagIds', 'checklist', 'contacts', 'flags', 'accountType', 'distributorIds']);
 const requireObject = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new StoreError('Ожидается объект с полями.');
 };
@@ -94,7 +94,12 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         ALTER TABLE card_flags_v6 RENAME TO card_flags;
         CREATE INDEX idx_flags_active ON card_flags(kind,active,card_id);`);
     }
-    db.exec('PRAGMA user_version=6; COMMIT');
+    if (!cardColumns.includes('contacts')) {
+      db.exec(`ALTER TABLE cards ADD COLUMN contacts TEXT NOT NULL DEFAULT '[]';
+        UPDATE cards SET contacts=json_array(json_object('id',lower(hex(randomblob(16))), 'name',contact_name,'role','','email',email))
+        WHERE contact_name<>'' OR email<>'';`);
+    }
+    db.exec('PRAGMA user_version=7; COMMIT');
   } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
   const statements = new Map();
   const sql = (query) => {
@@ -122,6 +127,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     return {
       id: row.id, listId: row.list_id, title: row.title, description: row.description,
       company: row.company, country: row.country, secondaryCountry: row.secondary_country, contactName: row.contact_name, email: row.email,
+      contacts: JSON.parse(row.contacts),
       accountType: row.account_type,
       distributorIds: sql('SELECT distributor_id AS id FROM card_distributors WHERE client_id=? ORDER BY distributor_id').all(row.id).map(x => x.id),
       distributors: sql('SELECT c.id,c.title,c.country,c.archived FROM card_distributors d JOIN cards c ON c.id=d.distributor_id WHERE d.client_id=? ORDER BY c.title').all(row.id).map(c => ({ ...c, archived: Boolean(c.archived) })),
@@ -161,6 +167,22 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     if (creating && (!('title' in input) || !('listId' in input))) throw new StoreError('Название и список обязательны.');
     for (const [key, max] of Object.entries(textFields)) if (key in input) result[key] = string(input[key], key, max, key === 'title');
     if (result.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) throw new StoreError('Некорректный адрес электронной почты.');
+    if ('contacts' in input) {
+      if (!Array.isArray(input.contacts) || input.contacts.length > 100) throw new StoreError('Допустимо не более 100 контактов.');
+      const seen = new Set();
+      result.contacts = input.contacts.map(contact => {
+        requireObject(contact);
+        if (Object.keys(contact).some(key => !['id', 'name', 'role', 'email'].includes(key))) throw new StoreError('Неизвестное поле контакта.');
+        const id = contact.id === undefined ? randomUUID() : string(contact.id, 'contact.id', 100, true);
+        if (seen.has(id)) throw new StoreError('Идентификаторы контактов должны быть уникальны.');
+        seen.add(id);
+        const name = string(contact.name ?? '', 'contact.name', 300);
+        const role = string(contact.role ?? '', 'contact.role', 500);
+        const email = string(contact.email ?? '', 'contact.email', 320);
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new StoreError('Некорректный адрес электронной почты контакта.');
+        return { id, name, role, email };
+      }).filter(contact => contact.name || contact.role || contact.email);
+    }
     if ('listId' in input) {
       result.listId = string(input.listId, 'listId', 100, true);
       if (!sql('SELECT id FROM lists WHERE id=?').get(result.listId)) throw new StoreError('Список не найден.', 404, 'NOT_FOUND');
@@ -210,6 +232,18 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     return result;
   };
   const saveCollections = (id, value) => {
+    if ('contacts' in value || 'contactName' in value || 'email' in value) {
+      const row = findCard(id);
+      let contacts = value.contacts;
+      if (!contacts) {
+        contacts = JSON.parse(row.contacts);
+        const first = contacts[0] || { id: randomUUID(), name: '', role: '', email: '' };
+        contacts = [{ ...first, name: row.contact_name, email: row.email }, ...contacts.slice(1)]
+          .filter(contact => contact.name || contact.role || contact.email);
+      }
+      sql('UPDATE cards SET contacts=?,contact_name=?,email=? WHERE id=?')
+        .run(JSON.stringify(contacts), contacts[0]?.name || '', contacts[0]?.email || '', id);
+    }
     if (value.accountType && !['distributor', 'partner'].includes(value.accountType) && sql('SELECT 1 FROM card_distributors WHERE distributor_id=? LIMIT 1').get(id)) throw new StoreError('Remove linked clients before changing this partner account type.');
     if (value.distributorIds) {
       for (const target of value.distributorIds) {
@@ -276,8 +310,8 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     }
     if (query.q) {
       const search = string(query.q, 'q', 200).toLocaleLowerCase('ru').replace(/[\\%_]/g, '\\$&');
-      where.push(`(leader_lower(c.title) LIKE ? ESCAPE '\\' OR leader_lower(c.company) LIKE ? ESCAPE '\\' OR leader_lower(c.country) LIKE ? ESCAPE '\\' OR leader_lower(c.secondary_country) LIKE ? ESCAPE '\\' OR leader_lower(c.contact_name) LIKE ? ESCAPE '\\' OR leader_lower(c.email) LIKE ? ESCAPE '\\' OR leader_lower(c.description) LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND leader_lower(f.comment) LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM card_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.card_id=c.id AND leader_lower(t.name) LIKE ? ESCAPE '\\'))`);
-      for (let i = 0; i < 9; i++) args.push(`%${search}%`);
+      where.push(`(leader_lower(c.title) LIKE ? ESCAPE '\\' OR leader_lower(c.company) LIKE ? ESCAPE '\\' OR leader_lower(c.country) LIKE ? ESCAPE '\\' OR leader_lower(c.secondary_country) LIKE ? ESCAPE '\\' OR leader_lower(c.contact_name) LIKE ? ESCAPE '\\' OR leader_lower(c.email) LIKE ? ESCAPE '\\' OR leader_lower(c.description) LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND leader_lower(f.comment) LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM card_tags ct JOIN tags t ON t.id=ct.tag_id WHERE ct.card_id=c.id AND leader_lower(t.name) LIKE ? ESCAPE '\\') OR EXISTS(SELECT 1 FROM json_each(c.contacts) person WHERE leader_lower(json_extract(person.value,'$.name')) LIKE ? ESCAPE '\\' OR leader_lower(json_extract(person.value,'$.role')) LIKE ? ESCAPE '\\' OR leader_lower(json_extract(person.value,'$.email')) LIKE ? ESCAPE '\\'))`);
+      for (let i = 0; i < 12; i++) args.push(`%${search}%`);
     }
     return { condition: where.join(' AND '), args };
   };
