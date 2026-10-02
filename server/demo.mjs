@@ -1,8 +1,8 @@
 // Fictional records only. These names and contact details are demonstration data.
 export const DEMO_LISTS = [
-  { id: 'demo-clients', name: 'Клиенты', color: '#4779eb' },
-  { id: 'demo-prospects', name: 'Потенциальные клиенты', color: '#a077df' },
-  { id: 'demo-partners', name: 'Партнёры', color: '#e9a74a' },
+  { id: 'demo-clients', name: 'Customers', color: '#4779eb' },
+  { id: 'demo-prospects', name: 'Prospects', color: '#a077df' },
+  { id: 'demo-partners', name: 'Partners', color: '#e9a74a' },
 ];
 
 export const DEMO_TAGS = [

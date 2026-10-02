@@ -12,7 +12,7 @@ export function createHttpApp({ store, companies, token = randomBytes(32).toStri
   app.disable('x-powered-by');
   app.use((request, response, next) => {
     const host = request.headers.host || '';
-    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host)) return response.status(403).json({ error: 'Недопустимый адрес сервера.', code: 'INVALID_HOST' });
+    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host)) return response.status(403).json({ error: 'Invalid server address.', code: 'INVALID_HOST' });
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('X-Frame-Options', 'DENY');
@@ -26,8 +26,8 @@ export function createHttpApp({ store, companies, token = randomBytes(32).toStri
     const suppliedBytes = Buffer.from(supplied);
     const tokenBytes = Buffer.from(token);
     const valid = suppliedBytes.length === tokenBytes.length && timingSafeEqual(suppliedBytes, tokenBytes);
-    if (request.get('Origin') !== `http://${request.headers.host}` || !valid) return response.status(403).json({ error: 'Сессия недействительна. Обновите страницу.', code: 'INVALID_SESSION' });
-    if (!request.is('application/json')) return response.status(415).json({ error: 'Ожидается JSON.', code: 'INVALID_CONTENT_TYPE' });
+    if (request.get('Origin') !== `http://${request.headers.host}` || !valid) return response.status(403).json({ error: 'Session expired. Reload the page.', code: 'INVALID_SESSION' });
+    if (!request.is('application/json')) return response.status(415).json({ error: 'Expected JSON.', code: 'INVALID_CONTENT_TYPE' });
     next();
   });
   app.get('/api/health', (_request, response) => response.json({ ok: true }));
@@ -45,7 +45,7 @@ export function createHttpApp({ store, companies, token = randomBytes(32).toStri
   }
   app.use('/api', (request, _response, next) => {
     const companyId = request.get('X-Leader-Company');
-    if (companies && !companyId && !['GET', 'HEAD'].includes(request.method)) throw new StoreError('Выберите компанию перед изменением данных.', 400, 'COMPANY_REQUIRED');
+    if (companies && !companyId && !['GET', 'HEAD'].includes(request.method)) throw new StoreError('Select a company before changing data.', 400, 'COMPANY_REQUIRED');
     request.company = companies ? companies.getCompany(companyId || 'demo') : { id: 'standalone', name: 'Local' };
     request.store = companies ? companies.getStore(request.company.id) : store;
     next();
@@ -58,8 +58,11 @@ export function createHttpApp({ store, companies, token = randomBytes(32).toStri
   app.patch('/api/cards/:id', (request, response) => response.json(request.store.updateCard(request.params.id, request.body)));
   app.post('/api/cards/:id/comments', (request, response) => response.status(201).json(request.store.addComment(request.params.id, request.body)));
   app.post('/api/lists', (request, response) => response.status(201).json(request.store.createList(request.body)));
+  app.delete('/api/lists/:id', (request, response) => response.json(request.store.deleteList(request.params.id)));
   app.post('/api/tags', (request, response) => response.status(201).json(request.store.createTag(request.body)));
-  app.use('/api', (_request, response) => response.status(404).json({ error: 'Маршрут не найден.', code: 'NOT_FOUND' }));
+  app.patch('/api/tags/:id', (request, response) => response.json(request.store.updateTag(request.params.id, request.body)));
+  app.delete('/api/tags/:id', (request, response) => response.json(request.store.deleteTag(request.params.id)));
+  app.use('/api', (_request, response) => response.status(404).json({ error: 'Route not found.', code: 'NOT_FOUND' }));
   const dist = resolve(root, 'dist');
   app.use(express.static(dist));
   app.use((request, response, next) => {
@@ -68,10 +71,10 @@ export function createHttpApp({ store, companies, token = randomBytes(32).toStri
   });
   app.use((error, _request, response, _next) => {
     if (error instanceof StoreError) return response.status(error.status).json({ error: error.message, code: error.code });
-    if (error.type === 'entity.parse.failed') return response.status(400).json({ error: 'Не удалось прочитать JSON.', code: 'INVALID_JSON' });
-    if (error.type === 'entity.too.large') return response.status(413).json({ error: 'Запрос слишком большой.', code: 'PAYLOAD_TOO_LARGE' });
+    if (error.type === 'entity.parse.failed') return response.status(400).json({ error: 'Could not read JSON.', code: 'INVALID_JSON' });
+    if (error.type === 'entity.too.large') return response.status(413).json({ error: 'Request is too large.', code: 'PAYLOAD_TOO_LARGE' });
     console.error('Leader API error:', error);
-    response.status(500).json({ error: 'Внутренняя ошибка сервера.', code: 'INTERNAL_ERROR' });
+    response.status(500).json({ error: 'Internal server error.', code: 'INTERNAL_ERROR' });
   });
   return app;
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { geoDistance, geoGraticule10, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo';
+import { geoBounds, geoContains, geoDistance, geoGraticule10, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo';
 import { ArrowUpRight, ChevronLeft, ChevronRight, Expand, Minus, Plus } from 'lucide-react';
 import { request } from './api';
 import { countryLocation, worldCountries } from './geography';
@@ -9,6 +9,27 @@ type Coverage = { countries: { country: string; count: number }[]; total: number
 type Rotation = [number, number];
 const emptyCoverage: Coverage = { countries: [], total: 0 };
 const graticule = geoGraticule10();
+const halton = (index: number, base: number) => {
+  let value = 0, fraction = 1 / base;
+  while (index > 0) { value += (index % base) * fraction; index = Math.floor(index / base); fraction /= base; }
+  return value;
+};
+function pointsWithinCountry(name: string, count: number, fallback: [number, number]): [number, number][] {
+  const shape = worldCountries.find(country => String(country.properties?.name) === name);
+  if (!shape || count <= 1) return [fallback];
+  const [[west, south], [east, north]] = geoBounds(shape);
+  const span = east >= west ? east - west : 360 - west + east;
+  const sinSouth = Math.sin(south * Math.PI / 180), sinNorth = Math.sin(north * Math.PI / 180);
+  const points: [number, number][] = [];
+  for (let i = 1; points.length < count && i < Math.max(4000, count * 180); i++) {
+    const lon = ((west + halton(i, 2) * span + 540) % 360) - 180;
+    const lat = Math.asin(sinSouth + halton(i, 3) * (sinNorth - sinSouth)) * 180 / Math.PI;
+    const point: [number, number] = [lon, lat];
+    if (geoContains(shape, point)) points.push(point);
+  }
+  while (points.length < count) points.push(fallback);
+  return points;
+}
 
 export function ClientGlobe({ selected, refresh, query, expanded = false, onExpand, onOpen }: {
   selected: Card | null; refresh: number; query: string; expanded?: boolean;
@@ -72,7 +93,7 @@ export function ClientGlobe({ selected, refresh, query, expanded = false, onExpa
     setData(emptyCoverage); setError(''); setLoading(true);
     request<Coverage>(`/geography?${scope}`, { signal: ctrl.signal })
       .then(value => { if (!ctrl.signal.aborted) setData(value); })
-      .catch(e => { if (!ctrl.signal.aborted) setError('Не удалось загрузить географию'); })
+      .catch(e => { if (!ctrl.signal.aborted) setError('Could not load geography'); })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
     return () => ctrl.abort();
   }, [scope, refresh]);
@@ -88,20 +109,12 @@ export function ClientGlobe({ selected, refresh, query, expanded = false, onExpa
     setClients([]); setTotal(0); morePending.current = false; setBusy(Boolean(chosen));
     if (chosen) request<CardPage>(`/cards?${countryQuery()}`, { signal: ctrl.signal })
       .then(page => { if (sequence === clientRequest.current) { setClients(page.items); setTotal(page.total); } })
-      .catch(e => { if (!ctrl.signal.aborted) setError('Не удалось загрузить карточки'); })
+      .catch(e => { if (!ctrl.signal.aborted) setError('Could not load cards'); })
       .finally(() => { if (sequence === clientRequest.current) setBusy(false); });
     return () => { ctrl.abort(); clientRequest.current++; };
   }, [countryQuery, chosen, refresh]);
   const mapped = useMemo(() => data.countries.map(c => ({ ...c, location: countryLocation(c.country) })), [data]);
-  const places = useMemo(() => mapped.filter(c => c.location).map(c => {
-    const n = Math.min(c.count, 10000);
-    let dots = '';
-    for (let i = 0; i < n; i++) {
-      const r = Math.sqrt(i) * 1.8, a = i * 2.39996, x = Math.cos(a) * r, y = Math.sin(a) * r;
-      dots += `M${x - 1},${y}a1,1 0 1,0 2,0a1,1 0 1,0 -2,0 `;
-    }
-    return { ...c, dots, radius: Math.max(7, Math.sqrt(n) * 2.1) };
-  }), [mapped]);
+  const places = useMemo(() => mapped.filter(c => c.location).map(c => ({ ...c, points: pointsWithinCountry(c.location!.name, Math.min(c.count, 10000), c.location!.point) })), [mapped]);
   useEffect(() => {
     const selectedPlace = countryLocation(selected?.country || '');
     const place = mapped.find(c => c.location?.name === selectedPlace?.name)?.location || mapped.find(c => c.location)?.location;
@@ -123,10 +136,10 @@ export function ClientGlobe({ selected, refresh, query, expanded = false, onExpa
     try {
       const page = await request<CardPage>(`/cards?${countryQuery(clients.length)}`);
       if (sequence === clientRequest.current) { setClients(v => [...v, ...page.items]); setTotal(page.total); }
-    } catch { if (sequence === clientRequest.current) setError('Не удалось загрузить карточки'); }
+    } catch { if (sequence === clientRequest.current) setError('Could not load cards'); }
     finally { if (sequence === clientRequest.current) { morePending.current = false; setBusy(false); } }
   };
-  const label = loading ? 'Загрузка географии' : `География текущего списка: ${data.total} карточек, ${places.length} стран`;
+  const label = loading ? 'Loading geography' : `Geography of the current list: ${data.total} cards, ${places.length} countries`;
   const svg = <svg viewBox="0 0 400 400" className="globe-svg" role={expanded ? 'group' : 'img'} aria-label={label} aria-busy={loading}
     style={{ touchAction: expanded ? 'none' : 'auto' }}
     onPointerDown={e => {
@@ -154,41 +167,40 @@ export function ClientGlobe({ selected, refresh, query, expanded = false, onExpa
       <path d={path(graticule) || ''} fill="none" stroke="#aec8e2" strokeWidth=".45" opacity=".6"/>
       {worldCountries.map((c, i) => <path key={c.id || i} d={path(c) || ''} fill={highlight.includes(String(c.properties?.name)) ? '#6e96dc' : '#c1d4e8'} stroke="#f4f9ff" strokeWidth=".55"/>)}
       {places.map(c => {
-        const loc = c.location!;
-        if (geoDistance(loc.point, [-rotation[0], -rotation[1]]) > Math.PI / 2) return null;
-        const p = projection(loc.point); if (!p) return null;
-        const active = highlight.includes(loc.name);
-        return <g key={c.country} transform={`translate(${p[0]},${p[1]})`} data-country={c.country} role={expanded ? 'button' : undefined} tabIndex={expanded ? 0 : undefined}
-          aria-label={`${c.country}: ${c.count} карточек`} aria-pressed={expanded ? chosen === c.country : undefined}
+        const active = highlight.includes(c.location!.name);
+        return <g key={c.country} data-country={c.country} role={expanded ? 'button' : undefined} tabIndex={expanded ? 0 : undefined}
+          aria-label={`${c.country}: ${c.count} cards`} aria-pressed={expanded ? chosen === c.country : undefined}
           onClick={expanded ? () => { if (!suppressClick.current) focus(c.country); } : undefined}
           onKeyDown={expanded ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); focus(c.country); } } : undefined}>
-          <circle cx="0" cy="0" r={c.radius} fill={active ? '#ffc55c' : '#416bd0'} opacity=".15"/>
-          <path d={c.dots} fill={active ? '#bb6900' : '#315dae'}/>
-          <circle cx="0" cy="0" r="3" fill={active ? '#ffc55c' : '#416bd0'} stroke="white" strokeWidth="1"/>
+          {c.points.map((point, index) => {
+            if (geoDistance(point, [-rotation[0], -rotation[1]]) > Math.PI / 2) return null;
+            const position = projection(point); if (!position) return null;
+            return <circle key={index} cx={position[0]} cy={position[1]} r={active ? 3 : 2.5} fill={active ? '#bb6900' : '#315dae'} stroke="white" strokeWidth=".75"/>;
+          })}
         </g>;
       })}
     </g>
   </svg>;
-  if (!expanded) return <button className="globe-preview" onClick={onExpand} aria-label={`Открыть глобус клиентов. ${label}`}>
+  if (!expanded) return <button className="globe-preview" onClick={onExpand} aria-label={`Open customer globe. ${label}`}>
     {svg}<Expand className="globe-expand" size={14}/>{error && <small role="alert">{error}</small>}
   </button>;
   return <div className="globe-explorer">
-    <div className="globe-stage" tabIndex={0} aria-label="Вращение глобуса стрелками" onKeyDown={e => {
+    <div className="globe-stage" tabIndex={0} aria-label="Rotate globe with arrow keys" onKeyDown={e => {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
         e.preventDefault(); const [x, y] = rotationRef.current;
         flyTo([x + (e.key === 'ArrowLeft' ? -15 : e.key === 'ArrowRight' ? 15 : 0), Math.max(-85, Math.min(85, y + (e.key === 'ArrowUp' ? 10 : e.key === 'ArrowDown' ? -10 : 0)))]);
       }
     }}>{svg}<div className="globe-controls">
-      <button aria-label="Повернуть глобус влево" onClick={() => flyTo([rotationRef.current[0] - 30, rotationRef.current[1]])}><ChevronLeft size={18}/></button>
-      <button aria-label="Уменьшить глобус" disabled={zoom <= .7} onClick={() => setZoom(z => Math.max(.7, z - .1))}><Minus size={17}/></button>
-      <button aria-label="Увеличить глобус" disabled={zoom >= 1.6} onClick={() => setZoom(z => Math.min(1.6, z + .1))}><Plus size={17}/></button>
-      <button aria-label="Повернуть глобус вправо" onClick={() => flyTo([rotationRef.current[0] + 30, rotationRef.current[1]])}><ChevronRight size={18}/></button>
+      <button aria-label="Rotate globe left" onClick={() => flyTo([rotationRef.current[0] - 30, rotationRef.current[1]])}><ChevronLeft size={18}/></button>
+      <button aria-label="Zoom out" disabled={zoom <= .7} onClick={() => setZoom(z => Math.max(.7, z - .1))}><Minus size={17}/></button>
+      <button aria-label="Zoom in" disabled={zoom >= 1.6} onClick={() => setZoom(z => Math.min(1.6, z + .1))}><Plus size={17}/></button>
+      <button aria-label="Rotate globe right" onClick={() => flyTo([rotationRef.current[0] + 30, rotationRef.current[1]])}><ChevronRight size={18}/></button>
     </div></div>
-    <aside className="globe-directory"><h3>Страны <span>{places.length}</span></h3>
-      {loading ? <p role="status">Загрузка…</p> : !places.length && <p>В текущем списке нет карточек с распознанной страной.</p>}
+    <aside className="globe-directory"><h3>Countries <span>{places.length}</span></h3>
+      {loading ? <p role="status">Loading…</p> : !places.length && <p>No cards with a recognized country in this list.</p>}
       <div className="country-grid">{places.map(c => <button key={c.country} className={chosen === c.country ? 'selected' : ''} aria-pressed={chosen === c.country} onClick={() => focus(c.country)}>{c.country}<b>{c.count}</b></button>)}</div>
-      {unmapped > 0 && <p className="geography-note">Не распознана страна: {unmapped} записей. Укажите её в карточке.</p>}
-      {chosen && <div className="globe-clients"><h3>{chosen} <span>{total}</span></h3>{clients.map(c => <button key={c.id} onClick={() => onOpen(c.id)}><span>{c.title}<small>{c.contactName}</small></span><ArrowUpRight size={15}/></button>)}{clients.length < total && <button disabled={busy} onClick={more}>Показать ещё</button>}{busy && <p>Загрузка…</p>}</div>}
+      {unmapped > 0 && <p className="geography-note">Country not recognized: {unmapped} records. Add a country to the card.</p>}
+      {chosen && <div className="globe-clients"><h3>{chosen} <span>{total}</span></h3>{clients.map(c => <button key={c.id} onClick={() => onOpen(c.id)}><span>{c.title}<small>{c.contactName}</small></span><ArrowUpRight size={15}/></button>)}{clients.length < total && <button disabled={busy} onClick={more}>Show more</button>}{busy && <p>Loading…</p>}</div>}
       {error && <p role="alert">{error}</p>}
     </aside>
   </div>;

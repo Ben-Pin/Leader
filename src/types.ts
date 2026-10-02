@@ -1,4 +1,4 @@
-export interface Tag { id: string; name: string; color: string; count?: number }
+export interface Tag { id: string; name: string; color: string; category?: string | null; count?: number }
 export interface ClientList { id: string; name: string; color: string; count: number }
 export interface ChecklistItem { id: string; text: string; done: boolean }
 export interface Activity { id: string; text: string; createdAt: string; contacts: Contact[] }

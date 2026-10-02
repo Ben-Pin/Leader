@@ -14,22 +14,25 @@ export class StoreError extends Error {
 }
 
 const stages = new Set(['lead', 'contacted', 'qualified', 'proposal', 'client']);
+const permanentLists = new Set(['Customers', 'Prospects', 'Partners', 'Distributors', 'Клиенты', 'Потенциальные', 'Партнеры', 'Дистрибьюторы']);
+const listByAccountType = { unspecified: ['Prospects', 'Потенциальные'], client: ['Customers', 'Клиенты'], partner: ['Partners', 'Партнеры'], distributor: ['Distributors', 'Дистрибьюторы'] };
+const tagCategories = new Set(['Countries', 'Time', 'Product', 'Stage', 'Application', 'Other']);
 export const contactStatuses = ['active', 'main', 'inactive', 'disturbing', 'useful', 'decisions'];
 export const flagKeys = ['inQuote', 'logisticsIssue', 'administrativeIssue', 'swIssue', 'hwIssue'];
 const textFields = { title: 300, description: 50000, company: 300, country: 120, secondaryCountry: 120, contactName: 300, email: 320 };
 const writableFields = new Set([...Object.keys(textFields), 'listId', 'lastContact', 'contactQuarter', 'dueDate', 'status', 'priority', 'completed', 'starred', 'archived', 'tagIds', 'checklist', 'contacts', 'flags', 'accountType', 'distributorIds']);
 const requireObject = (value) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new StoreError('Ожидается объект с полями.');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new StoreError('Expected an object with fields.');
 };
 const string = (value, label, max = 300, required = false) => {
-  if (typeof value !== 'string' || value.length > max || (required && !value.trim())) throw new StoreError(`Некорректное поле «${label}».`);
+  if (typeof value !== 'string' || value.length > max || (required && !value.trim())) throw new StoreError(`Invalid field “${label}”.`);
   return value.trim();
 };
 const date = (value, label) => {
   if (value === null || value === '') return null;
-  if (typeof value !== 'string' || !/^[1-9]\d{3}-\d{2}-\d{2}$/.test(value)) throw new StoreError(`«${label}»: ожидается дата ГГГГ-ММ-ДД.`);
+  if (typeof value !== 'string' || !/^[1-9]\d{3}-\d{2}-\d{2}$/.test(value)) throw new StoreError(`«${label}»: expected a date in YYYY-MM-DD format.`);
   const parsed = new Date(`${value}T00:00:00.000Z`);
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) throw new StoreError(`«${label}»: такой даты не существует.`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) throw new StoreError(`«${label}»: this date does not exist.`);
   return value;
 };
 export function quarterTag(lastContact) {
@@ -72,6 +75,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     CREATE TABLE IF NOT EXISTS card_distributors (client_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE, distributor_id TEXT NOT NULL REFERENCES cards(id), PRIMARY KEY(client_id,distributor_id), CHECK(client_id<>distributor_id));
     CREATE INDEX IF NOT EXISTS idx_distributor_clients ON card_distributors(distributor_id,client_id);
   `);
+  if (!db.prepare('PRAGMA table_info(tags)').all().some(column => column.name === 'category')) db.exec('ALTER TABLE tags ADD COLUMN category TEXT');
   if (!db.prepare('PRAGMA table_info(cards)').all().some(column => column.name === 'account_type')) db.exec("ALTER TABLE cards ADD COLUMN account_type TEXT NOT NULL DEFAULT 'unspecified' CHECK(account_type IN ('unspecified','client','distributor','partner'))");
   if (!db.prepare('PRAGMA table_info(cards)').all().some(column => column.name === 'contact_quarter')) db.exec('ALTER TABLE cards ADD COLUMN contact_quarter TEXT');
   const cardColumns = db.prepare('PRAGMA table_info(cards)').all().map(c => c.name);
@@ -126,7 +130,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
   const findCard = (id) => {
     string(id, 'id', 100, true);
     const row = sql('SELECT * FROM cards WHERE id=?').get(id);
-    if (!row) throw new StoreError('Карточка не найдена.', 404, 'NOT_FOUND');
+    if (!row) throw new StoreError('Card not found.', 404, 'NOT_FOUND');
     return row;
   };
   const hydrate = (row) => {
@@ -154,7 +158,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
   };
   const validate = (input, creating = false) => {
     requireObject(input);
-    for (const key of Object.keys(input)) if (!writableFields.has(key) && !(key === 'version' && !creating)) throw new StoreError(`Неизвестное поле «${key}».`);
+    for (const key of Object.keys(input)) if (!writableFields.has(key) && !(key === 'version' && !creating)) throw new StoreError(`Unknown field “${key}”.`);
     const result = {};
     if ('contactQuarter' in input) {
       if (input.contactQuarter !== null && !/^[1-9]\d{3}-[1-4]$/.test(input.contactQuarter)) throw new StoreError('Contact quarter must be YYYY-Q or null.');
@@ -172,58 +176,58 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         if (!['distributor', 'partner'].includes(target.account_type)) throw new StoreError('The linked card must be a distributor or partner.');
       }
     }
-    if (creating && (!('title' in input) || !('listId' in input))) throw new StoreError('Название и список обязательны.');
+    if (creating && (!('title' in input) || !('listId' in input))) throw new StoreError('A name and list are required.');
     for (const [key, max] of Object.entries(textFields)) if (key in input) result[key] = string(input[key], key, max, key === 'title');
-    if (result.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) throw new StoreError('Некорректный адрес электронной почты.');
+    if (result.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.email)) throw new StoreError('Invalid email address.');
     if ('contacts' in input) {
-      if (!Array.isArray(input.contacts) || input.contacts.length > 100) throw new StoreError('Допустимо не более 100 контактов.');
+      if (!Array.isArray(input.contacts) || input.contacts.length > 100) throw new StoreError('Up to 100 contacts are allowed.');
       const seen = new Set();
       result.contacts = input.contacts.map(contact => {
         requireObject(contact);
-        if (Object.keys(contact).some(key => !['id', 'name', 'role', 'email', 'status'].includes(key))) throw new StoreError('Неизвестное поле контакта.');
+        if (Object.keys(contact).some(key => !['id', 'name', 'role', 'email', 'status'].includes(key))) throw new StoreError('Unknown contact field.');
         const id = contact.id === undefined ? randomUUID() : string(contact.id, 'contact.id', 100, true);
-        if (seen.has(id)) throw new StoreError('Идентификаторы контактов должны быть уникальны.');
+        if (seen.has(id)) throw new StoreError('Contact IDs must be unique.');
         seen.add(id);
         const name = string(contact.name ?? '', 'contact.name', 300);
         const role = string(contact.role ?? '', 'contact.role', 500);
         const email = string(contact.email ?? '', 'contact.email', 320);
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new StoreError('Некорректный адрес электронной почты контакта.');
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new StoreError('Invalid contact email address.');
         const status = contact.status ?? 'active';
-        if (!contactStatuses.includes(status)) throw new StoreError('Неизвестный статус контакта.');
+        if (!contactStatuses.includes(status)) throw new StoreError('Unknown contact status.');
         return { id, name, role, email, status };
       }).filter(contact => contact.name || contact.role || contact.email);
     }
     if ('listId' in input) {
       result.listId = string(input.listId, 'listId', 100, true);
-      if (!sql('SELECT id FROM lists WHERE id=?').get(result.listId)) throw new StoreError('Список не найден.', 404, 'NOT_FOUND');
+      if (!sql('SELECT id FROM lists WHERE id=?').get(result.listId)) throw new StoreError('List not found.', 404, 'NOT_FOUND');
     }
     for (const key of ['lastContact', 'dueDate']) if (key in input) result[key] = date(input[key], key);
     if ('status' in input) {
-      if (!stages.has(input.status)) throw new StoreError('Неизвестный этап клиента.');
+      if (!stages.has(input.status)) throw new StoreError('Unknown customer stage.');
       result.status = input.status;
     }
     if ('priority' in input) {
-      if (!Number.isInteger(input.priority) || input.priority < 0 || input.priority > 3) throw new StoreError('Приоритет должен быть от 0 до 3.');
+      if (!Number.isInteger(input.priority) || input.priority < 0 || input.priority > 3) throw new StoreError('Priority must be between 0 and 3.');
       result.priority = input.priority;
     }
     for (const key of ['completed', 'starred', 'archived']) if (key in input) {
-      if (typeof input[key] !== 'boolean') throw new StoreError(`«${key}» должно быть логическим значением.`);
+      if (typeof input[key] !== 'boolean') throw new StoreError(`«${key}» must be a boolean.`);
       result[key] = input[key];
     }
     if ('tagIds' in input) {
-      if (!Array.isArray(input.tagIds) || input.tagIds.length > 50) throw new StoreError('Допустимо не более 50 тегов.');
+      if (!Array.isArray(input.tagIds) || input.tagIds.length > 50) throw new StoreError('Up to 50 tags are allowed.');
       result.tagIds = [...new Set(input.tagIds.map(id => string(id, 'tagId', 100, true)))];
-      for (const id of result.tagIds) if (!sql('SELECT id FROM tags WHERE id=?').get(id)) throw new StoreError('Тег не найден; квартальный тег рассчитывается автоматически.');
+      for (const id of result.tagIds) if (!sql('SELECT id FROM tags WHERE id=?').get(id)) throw new StoreError('Tag not found; quarter tags are calculated automatically.');
     }
     if ('checklist' in input) {
-      if (!Array.isArray(input.checklist) || input.checklist.length > 100) throw new StoreError('Допустимо не более 100 пунктов чек-листа.');
+      if (!Array.isArray(input.checklist) || input.checklist.length > 100) throw new StoreError('Up to 100 checklist items are allowed.');
       const seenIds = new Set();
       result.checklist = input.checklist.map(item => {
         requireObject(item);
         const id = item.id === undefined ? randomUUID() : string(item.id, 'checklist.id', 100, true);
-        if (seenIds.has(id)) throw new StoreError('Идентификаторы пунктов чек-листа должны быть уникальны.');
+        if (seenIds.has(id)) throw new StoreError('Checklist item IDs must be unique.');
         seenIds.add(id);
-        if (item.done !== undefined && typeof item.done !== 'boolean') throw new StoreError('Состояние пункта чек-листа должно быть логическим.');
+        if (item.done !== undefined && typeof item.done !== 'boolean') throw new StoreError('Checklist item state must be a boolean.');
         return { id, text: string(item.text, 'checklist.text', 2000, true), done: item.done ?? false };
       });
     }
@@ -231,11 +235,11 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       requireObject(input.flags);
       result.flags = {};
       for (const [kind, flag] of Object.entries(input.flags)) {
-        if (!flagKeys.includes(kind)) throw new StoreError('Неизвестный флаг.');
+        if (!flagKeys.includes(kind)) throw new StoreError('Unknown flag.');
         requireObject(flag);
-        if (Object.keys(flag).some(key => !['active', 'comment'].includes(key)) || typeof flag.active !== 'boolean') throw new StoreError('Некорректный флаг.');
+        if (Object.keys(flag).some(key => !['active', 'comment'].includes(key)) || typeof flag.active !== 'boolean') throw new StoreError('Invalid flag.');
         const comment = string(flag.comment ?? '', 'flag.comment', 300);
-        if (/[\r\n]/.test(comment)) throw new StoreError('Комментарий флага должен занимать одну строку.');
+        if (/[\r\n]/.test(comment)) throw new StoreError('Flag comment must be one line.');
         result.flags[kind] = { active: flag.active, comment };
       }
     }
@@ -275,15 +279,15 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       // Reject foreign checklist IDs before replacing any collection.
       for (const item of value.checklist) {
         const other = sql('SELECT card_id FROM checklist_items WHERE id=?').get(item.id);
-        if (other && other.card_id !== id) throw new StoreError('Этот пункт чек-листа принадлежит другой карточке.');
+        if (other && other.card_id !== id) throw new StoreError('This checklist item belongs to another card.');
       }
       sql('DELETE FROM checklist_items WHERE card_id=?').run(id);
       value.checklist.forEach((item, index) => sql('INSERT INTO checklist_items(id,card_id,text,done,position) VALUES(?,?,?,?,?)').run(item.id, id, item.text, Number(item.done), index));
     }
   };
   const checkVersion = (row, version) => {
-    if (!Number.isInteger(version) || version < 1) throw new StoreError('Для изменения необходима текущая версия карточки.');
-    if (version !== row.version) throw new StoreError('Карточка уже изменена. Обновите её и повторите действие.', 409, 'VERSION_CONFLICT');
+    if (!Number.isInteger(version) || version < 1) throw new StoreError('The current card version is required for changes.');
+    if (version !== row.version) throw new StoreError('This card has changed. Refresh it and try again.', 409, 'VERSION_CONFLICT');
   };
   const columns = { listId: 'list_id', title: 'title', description: 'description', company: 'company', country: 'country', secondaryCountry: 'secondary_country', contactName: 'contact_name', email: 'email', lastContact: 'last_contact', contactQuarter: 'contact_quarter', dueDate: 'due_date', status: 'status', priority: 'priority', completed: 'completed', starred: 'starred', archived: 'archived', accountType: 'account_type' };
   // Shared by paginated cards and full-result geography.
@@ -292,7 +296,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     const where = ['c.archived=0'];
     const args = [];
     const view = query.view || 'all';
-    if (!['all', 'active', 'completed', 'starred', ...flagKeys].includes(view)) throw new StoreError('Неизвестный фильтр карточек.');
+    if (!['all', 'active', 'completed', 'starred', ...flagKeys].includes(view)) throw new StoreError('Unknown card filter.');
     if (view === 'active') where.push('EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.active=1)');
     if (flagKeys.includes(view)) { where.push('EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.kind=? AND f.active=1)'); args.push(view); }
     if (view === 'completed') where.push('c.completed=1');
@@ -309,7 +313,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       const tag = string(query.tag, 'tag', 100, true);
       if (tag.startsWith('quarter:')) {
         const match = /^quarter:([1-9]\d{3})-([1-4])$/.exec(tag);
-        if (!match) throw new StoreError('Некорректный квартальный тег.');
+        if (!match) throw new StoreError('Invalid quarter tag.');
         const startMonth = (Number(match[2]) - 1) * 3 + 1;
         const start = `${match[1]}-${String(startMonth).padStart(2, '0')}-01`;
         const lastMonth = startMonth + 2;
@@ -349,6 +353,10 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         const row = findCard(id);
         checkVersion(row, input.version);
         const value = validate(input);
+        if (value.accountType && value.accountType !== row.account_type) {
+          const target = listByAccountType[value.accountType].map(name => sql('SELECT id FROM lists WHERE name=? COLLATE NOCASE').get(name)).find(Boolean);
+          if (target) value.listId = target.id;
+        }
         const entries = Object.entries(value).filter(([key]) => key in columns);
         const clause = entries.map(([key]) => `${columns[key]}=?`);
         const args = entries.map(([, val]) => typeof val === 'boolean' ? Number(val) : val);
@@ -366,11 +374,11 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         checkVersion(row, input.version);
         const text = string(input.text, 'text', 10000, true);
         const now = new Date().toISOString();
-        if (!Array.isArray(input.contactIds) || !input.contactIds.length || input.contactIds.length > 100) throw new StoreError('Выберите хотя бы один контакт для записи истории.');
+        if (!Array.isArray(input.contactIds) || !input.contactIds.length || input.contactIds.length > 100) throw new StoreError('Select at least one contact for the history entry.');
         const available = JSON.parse(row.contacts);
         const contacts = [...new Set(input.contactIds.map(value => string(value, 'contactId', 100, true)))].map(contactId => {
           const contact = available.find(person => person.id === contactId);
-          if (!contact) throw new StoreError('Контакт не найден в этой карточке.');
+          if (!contact) throw new StoreError('Contact not found on this card.');
           return contact;
         });
         sql('INSERT INTO activity(id,card_id,text,created_at,contacts) VALUES(?,?,?,?,?)').run(randomUUID(), id, text, now, JSON.stringify(contacts));
@@ -380,12 +388,39 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     },
     createList(input) { return createNamed('lists', input); },
     createTag(input) { return createNamed('tags', input); },
+    updateTag(id, input) {
+      requireObject(input);
+      if (!tagCategories.has(input.category)) throw new StoreError('Unknown tag group.');
+      return transaction(() => {
+        if (!sql('SELECT id FROM tags WHERE id=?').get(id)) throw new StoreError('Tag not found.', 404, 'NOT_FOUND');
+        sql('UPDATE tags SET category=? WHERE id=?').run(input.category, id);
+        return sql('SELECT id,name,color,category FROM tags WHERE id=?').get(id);
+      });
+    },
+    deleteList(id) {
+      return transaction(() => {
+        const list = sql('SELECT id,name FROM lists WHERE id=?').get(id);
+        if (!list) throw new StoreError('List not found.', 404, 'NOT_FOUND');
+        if (permanentLists.has(list.name)) throw new StoreError('This permanent list cannot be deleted.', 409, 'PERMANENT_LIST');
+        if (sql('SELECT 1 FROM cards WHERE list_id=? LIMIT 1').get(id)) throw new StoreError('Move the cards out of this list first.', 409, 'LIST_NOT_EMPTY');
+        sql('DELETE FROM lists WHERE id=?').run(id);
+        return { id };
+      });
+    },
+    deleteTag(id) {
+      return transaction(() => {
+        if (!sql('SELECT id FROM tags WHERE id=?').get(id)) throw new StoreError('Tag not found.', 404, 'NOT_FOUND');
+        sql('DELETE FROM card_tags WHERE tag_id=?').run(id);
+        sql('DELETE FROM tags WHERE id=?').run(id);
+        return { id };
+      });
+    },
     listCards(query = {}) {
       requireObject(query);
       const integer = (value, fallback, min, max, label) => {
         if (value === undefined || value === '') return fallback;
         const result = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-        if (!Number.isSafeInteger(result) || result < min || result > max) throw new StoreError(`Некорректное значение ${label}.`);
+        if (!Number.isSafeInteger(result) || result < min || result > max) throw new StoreError(`Invalid value ${label}.`);
         return result;
       };
       const limit = integer(query.limit, 100, 1, 200, 'limit');
@@ -393,14 +428,14 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       const { condition, args } = cardFilter(query);
       const sorts = { updated: 'c.updated_at DESC,c.id', contact: "COALESCE(c.last_contact,substr(c.contact_quarter,1,4)||'-'||printf('%02d',CAST(substr(c.contact_quarter,-1) AS INTEGER)*3)||'-00') DESC,c.title COLLATE NOCASE,c.id", title: 'leader_lower(c.title),c.id', titleDesc: 'leader_lower(c.title) DESC,c.id' };
       const sort = query.sort || 'updated';
-      if (!Object.hasOwn(sorts, sort)) throw new StoreError('Неизвестный порядок сортировки.');
+      if (!Object.hasOwn(sorts, sort)) throw new StoreError('Unknown sort order.');
       const total = sql(`SELECT COUNT(*) AS total FROM cards c WHERE ${condition}`).get(...args).total;
       const items = sql(`SELECT c.* FROM cards c WHERE ${condition} ORDER BY ${sorts[sort]} LIMIT ? OFFSET ?`).all(...args, limit, offset).map(hydrate);
       return { items, total, limit, offset };
     },
     bootstrap() {
       const lists = sql('SELECT l.id,l.name,l.color,COUNT(c.id) AS count FROM lists l LEFT JOIN cards c ON c.list_id=l.id AND c.archived=0 GROUP BY l.id ORDER BY l.rowid').all();
-      const tags = sql('SELECT t.id,t.name,t.color,COUNT(c.id) AS count FROM tags t LEFT JOIN card_tags ct ON ct.tag_id=t.id LEFT JOIN cards c ON c.id=ct.card_id AND c.archived=0 GROUP BY t.id ORDER BY t.name COLLATE NOCASE').all();
+      const tags = sql('SELECT t.id,t.name,t.color,t.category,COUNT(c.id) AS count FROM tags t LEFT JOIN card_tags ct ON ct.tag_id=t.id LEFT JOIN cards c ON c.id=ct.card_id AND c.archived=0 GROUP BY t.id ORDER BY t.name COLLATE NOCASE').all();
       const quarters = sql("SELECT CASE WHEN last_contact IS NOT NULL THEN substr(last_contact,1,4) || '-' || ((CAST(substr(last_contact,6,2) AS INTEGER)+2)/3) ELSE contact_quarter END AS quarter, COUNT(*) AS count FROM cards WHERE archived=0 AND (last_contact IS NOT NULL OR contact_quarter IS NOT NULL) GROUP BY quarter ORDER BY quarter DESC").all().map(row => ({ ...quarterTag(`${row.quarter.slice(0, 4)}-${String((Number(row.quarter.slice(-1)) - 1) * 3 + 1).padStart(2, '0')}-01`), count: row.count }));
       const stats = sql('SELECT COUNT(*) AS total,COALESCE(SUM(completed=0),0) AS active,COALESCE(SUM(completed=1),0) AS completed,COALESCE(SUM(starred=1),0) AS starred FROM cards WHERE archived=0').get();
       stats.active = sql('SELECT COUNT(*) AS n FROM cards c WHERE archived=0 AND EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.active=1)').get().n;
@@ -415,15 +450,15 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     exportData() {
       return transaction(() => ({ format: 'leader-company', version: 1, demo: service.bootstrap().demo,
         lists: sql('SELECT id,name,color FROM lists ORDER BY rowid').all(),
-        tags: sql('SELECT id,name,color FROM tags ORDER BY rowid').all(),
+        tags: sql('SELECT id,name,color,category FROM tags ORDER BY rowid').all(),
         cards: sql('SELECT * FROM cards ORDER BY rowid').all().map(hydrate) }));
     },
     importData(bundle) {
       requireObject(bundle);
-      if (bundle.format !== 'leader-company' || bundle.version !== 1 || !Array.isArray(bundle.lists) || !Array.isArray(bundle.tags) || !Array.isArray(bundle.cards)) throw new StoreError('Неподдерживаемый формат базы Leader.');
-      if (bundle.cards.length > 100000 || bundle.lists.length > 10000 || bundle.tags.length > 10000) throw new StoreError('Слишком большая база.');
+      if (bundle.format !== 'leader-company' || bundle.version !== 1 || !Array.isArray(bundle.lists) || !Array.isArray(bundle.tags) || !Array.isArray(bundle.cards)) throw new StoreError('Unsupported Leader database format.');
+      if (bundle.cards.length > 100000 || bundle.lists.length > 10000 || bundle.tags.length > 10000) throw new StoreError('Database is too large.');
       return transaction(() => {
-        if (sql('SELECT COUNT(*) AS n FROM lists').get().n || sql('SELECT COUNT(*) AS n FROM cards').get().n) throw new StoreError('Импорт разрешён только в новую пустую базу.');
+        if (sql('SELECT COUNT(*) AS n FROM lists').get().n || sql('SELECT COUNT(*) AS n FROM cards').get().n) throw new StoreError('Import is allowed only into a new empty database.');
         for (const [table, rows] of [['lists', bundle.lists], ['tags', bundle.tags]]) {
           for (const row of rows) {
             const id = string(row.id, 'id', 100, true);
@@ -433,7 +468,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         }
         const timestamp = value => {
           const text = string(value, 'timestamp', 40, true);
-          if (!/^\d{4}-\d\d-\d\dT/.test(text) || !Number.isFinite(Date.parse(text))) throw new StoreError('Некорректная дата истории.');
+          if (!/^\d{4}-\d\d-\d\dT/.test(text) || !Number.isFinite(Date.parse(text))) throw new StoreError('Invalid history date.');
           return text;
         };
         for (const record of bundle.cards) {
@@ -441,10 +476,10 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
           const fields = Object.fromEntries(Object.entries(record).filter(([key]) => writableFields.has(key)));
           delete fields.distributorIds; // Restore links only after every endpoint exists.
           if (fields.flags) fields.flags = Object.fromEntries(Object.entries(fields.flags).map(([kind,flag]) => [kind,{active:flag.active,comment:flag.comment}]));
-          if (!Array.isArray(record.tags) || !Array.isArray(record.activity)) throw new StoreError('Некорректные теги или история карточки.');
+          if (!Array.isArray(record.tags) || !Array.isArray(record.activity)) throw new StoreError('Invalid card tags or history.');
           fields.tagIds = record.tags.filter(tag => !String(tag.id).startsWith('quarter:')).map(tag => tag.id);
           const card = service.createCard(fields, record.id);
-          if (!Number.isInteger(record.version) || record.version < 1) throw new StoreError('Некорректная версия карточки.');
+          if (!Number.isInteger(record.version) || record.version < 1) throw new StoreError('Invalid card version.');
           sql('UPDATE cards SET version=?,created_at=?,updated_at=? WHERE id=?').run(record.version, timestamp(record.createdAt), timestamp(record.updatedAt), card.id);
           sql('UPDATE cards SET starred_at=? WHERE id=?').run(record.starredAt ? timestamp(record.starredAt) : null, card.id);
           for (const [kind,flag] of Object.entries(record.flags || {})) sql('UPDATE card_flags SET activated_at=? WHERE card_id=? AND kind=?').run(flag.activatedAt ? timestamp(flag.activatedAt) : null,card.id,kind);
@@ -465,14 +500,17 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
   function createNamed(table, input) {
     requireObject(input);
     const name = string(input.name, 'name', 100, true);
-    if (table === 'tags' && (/^\d{4}-[1-4]$/.test(name) || name.startsWith('quarter:'))) throw new StoreError('Квартальные теги создаются автоматически.');
+    if (table === 'tags' && (/^\d{4}-[1-4]$/.test(name) || name.startsWith('quarter:'))) throw new StoreError('Quarter tags are created automatically.');
     const color = input.color ?? '#4779eb';
-    if (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color)) throw new StoreError('Цвет должен иметь формат #RRGGBB.');
+    if (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color)) throw new StoreError('Color must use #RRGGBB format.');
+    const category = table === 'tags' ? input.category ?? null : null;
+    if (category !== null && !tagCategories.has(category)) throw new StoreError('Unknown tag group.');
     return transaction(() => {
-      if (sql(`SELECT id FROM ${table} WHERE name=? COLLATE NOCASE`).get(name)) throw new StoreError('Такое название уже существует.', 409, 'DUPLICATE_NAME');
+      if (sql(`SELECT id FROM ${table} WHERE name=? COLLATE NOCASE`).get(name)) throw new StoreError('That name already exists.', 409, 'DUPLICATE_NAME');
       const id = randomUUID();
-      sql(`INSERT INTO ${table}(id,name,color) VALUES(?,?,?)`).run(id, name, color);
-      return { id, name, color, count: 0 };
+      if (table === 'tags') sql('INSERT INTO tags(id,name,color,category) VALUES(?,?,?,?)').run(id, name, color, category);
+      else sql('INSERT INTO lists(id,name,color) VALUES(?,?,?)').run(id, name, color);
+      return { id, name, color, ...(table === 'tags' ? { category } : {}), count: 0 };
     });
   }
   if (seed && !sql("SELECT value FROM metadata WHERE key='initialized'").get()) {

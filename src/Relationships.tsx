@@ -37,7 +37,7 @@ export function Relationships({ card, accountType, distributorIds, disabled, onT
   };
   return <section className="relationships" aria-label="Account relationships">
     <div className="relationship-heading"><Link2 size={14}/><strong>Relationships</strong><select aria-label="Account type" value={accountType} disabled={disabled} onChange={e => onType(e.target.value as AccountType)}>
-      <option value="unspecified">Type not verified</option><option value="client">Client</option><option value="distributor">Distributor</option><option value="partner">Partner</option>
+      <option value="unspecified">Potential customer</option><option value="client">Customer</option><option value="distributor">Distributor</option><option value="partner">Partner</option>
     </select></div>
     <div className="relationship-label">Distributors / partners</div>
     {distributorIds.map(id => {

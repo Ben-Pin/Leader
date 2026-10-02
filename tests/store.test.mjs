@@ -24,6 +24,44 @@ function fixture(t, options = {}) {
   return { store: open(), open, path };
 }
 
+test('empty lists and tags can be deleted without losing cards', t => {
+  const { store } = fixture(t);
+  const list = store.createList({ name: 'Temporary' });
+  const tag = store.createTag({ name: 'Temporary tag' });
+  const card = store.createCard({ title: 'Example', listId: list.id, tagIds: [tag.id] });
+  assert.throws(() => store.deleteList(list.id), error => error.code === 'LIST_NOT_EMPTY');
+  store.deleteTag(tag.id);
+  assert.deepEqual(store.getCard(card.id).tags, []);
+  const other = store.createList({ name: 'Keep' });
+  store.updateCard(card.id, { version: card.version, listId: other.id });
+  store.deleteList(list.id);
+  assert.equal(store.getCard(card.id).listId, other.id);
+  assert.throws(() => store.deleteList(list.id), error => error.code === 'NOT_FOUND');
+});
+
+test('account type moves cards between permanent lists and protects them', t => {
+  const { store } = fixture(t);
+  const names = ['Customers', 'Prospects', 'Partners', 'Distributors'];
+  const ids = Object.fromEntries(names.map(name => [name, store.createList({ name }).id]));
+  const first = store.createCard({ title: 'Example', listId: ids.Prospects });
+  const client = store.updateCard(first.id, { version: first.version, accountType: 'client' });
+  assert.equal(client.listId, ids.Customers);
+  const distributor = store.updateCard(first.id, { version: client.version, accountType: 'distributor' });
+  assert.equal(distributor.listId, ids.Distributors);
+  const potential = store.updateCard(first.id, { version: distributor.version, accountType: 'unspecified' });
+  assert.equal(potential.listId, ids.Prospects);
+  for (const id of Object.values(ids)) assert.throws(() => store.deleteList(id), error => error.code === 'PERMANENT_LIST');
+});
+
+test('tag group can be chosen and changed', t => {
+  const { store } = fixture(t);
+  const tag = store.createTag({ name: 'Liechtenstein', category: 'Countries' });
+  assert.equal(store.bootstrap().tags.find(item => item.id === tag.id).category, 'Countries');
+  store.updateTag(tag.id, { category: 'Other' });
+  assert.equal(store.exportData().tags.find(item => item.id === tag.id).category, 'Other');
+  assert.throws(() => store.updateTag(tag.id, { category: 'Unknown' }));
+});
+
 test('fictional demo is complete, quarter-first and idempotent on restart', t => {
   const { store, open } = fixture(t, { seed: true });
   const bootstrap = store.bootstrap();

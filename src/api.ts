@@ -18,11 +18,11 @@ export async function request<T>(path: string, options?: { method?: string; body
   });
   let data;
   try { data = await response.json(); }
-  catch { throw new ApiError('Сервер недоступен. Проверьте, что Leader запущен.', response.status); }
+  catch { throw new ApiError('Server unavailable. Check that Leader is running.', response.status); }
   if (!response.ok && path === '/bootstrap' && data.code === 'COMPANY_NOT_FOUND') {
     const available = await request<{companies:{id:string}[]}>('/companies');
     if (available.companies.length) { selectCompany(available.companies[0].id); return request<T>(path,options); }
   }
-  if (!response.ok) throw new ApiError(data.error || 'Не удалось выполнить действие.', response.status);
+  if (!response.ok) throw new ApiError(data.error || 'Could not complete the action.', response.status);
   return data as T;
 }
