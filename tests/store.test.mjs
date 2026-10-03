@@ -62,6 +62,22 @@ test('tag group can be chosen and changed', t => {
   assert.throws(() => store.updateTag(tag.id, { category: 'Unknown' }));
 });
 
+test('auto-tag aligns stored quarters with dated contacts and preserves quarter-only history', t => {
+  const { store } = fixture(t);
+  const list = store.createList({ name: 'Prospects' });
+  const dated = store.createCard({ title: 'Dated', listId: list.id, lastContact: '2026-04-09', contactQuarter: '2025-4' });
+  const future = store.createCard({ title: 'Future', listId: list.id, lastContact: '2027-02-08', contactQuarter: '2026-4' });
+  const archived = store.createCard({ title: 'Archived', listId: list.id, lastContact: '2024-12-01', contactQuarter: '2026-1', archived: true });
+  const quarterOnly = store.createCard({ title: 'Historical', listId: list.id, contactQuarter: '2023-2' });
+  assert.deepEqual(store.syncContactQuarters(), { updated: 3, examined: 3 });
+  assert.equal(store.getCard(dated.id).contactQuarter, '2026-2');
+  assert.equal(store.getCard(future.id).contactQuarter, '2027-1');
+  assert.ok(store.bootstrap().tags.some(tag => tag.id === 'quarter:2027-1' && tag.category === 'Time'));
+  assert.equal(store.getCard(archived.id).contactQuarter, '2024-4');
+  assert.equal(store.getCard(quarterOnly.id).contactQuarter, '2023-2');
+  assert.equal(store.syncContactQuarters().updated, 0);
+});
+
 test('fictional demo is complete, quarter-first and idempotent on restart', t => {
   const { store, open } = fixture(t, { seed: true });
   const bootstrap = store.bootstrap();

@@ -39,7 +39,7 @@ export function quarterTag(lastContact) {
   if (!lastContact) return null;
   const year = Number(lastContact.slice(0, 4));
   const name = `${year}-${Math.ceil(Number(lastContact.slice(5, 7)) / 3)}`;
-  return { id: `quarter:${name}`, name, color: year >= 2026 ? '#36c96b' : year === 2025 ? '#88b66d' : year === 2024 ? '#e6a64b' : '#e27370' };
+  return { id: `quarter:${name}`, name, color: year >= 2026 ? '#36c96b' : year === 2025 ? '#88b66d' : year === 2024 ? '#e6a64b' : '#e27370', category: 'Time' };
 }
 
 export function createStore({ path = resolve('data/leader.sqlite'), seed = true } = {}) {
@@ -365,6 +365,19 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         if (value.starred === true && !row.starred) sql('UPDATE cards SET starred_at=? WHERE id=?').run(new Date().toISOString(), id);
         saveCollections(id, value);
         return service.getCard(id);
+      });
+    },
+    syncContactQuarters() {
+      return transaction(() => {
+        const rows = sql("SELECT id,last_contact AS lastContact,contact_quarter AS contactQuarter FROM cards WHERE last_contact IS NOT NULL AND last_contact<>''").all();
+        const update = sql('UPDATE cards SET contact_quarter=?,version=version+1,updated_at=? WHERE id=?');
+        const now = new Date().toISOString();
+        let updated = 0;
+        for (const row of rows) {
+          const quarter = `${row.lastContact.slice(0, 4)}-${Math.ceil(Number(row.lastContact.slice(5, 7)) / 3)}`;
+          if (row.contactQuarter !== quarter) { update.run(quarter, now, row.id); updated++; }
+        }
+        return { updated, examined: rows.length };
       });
     },
     addComment(id, input) {

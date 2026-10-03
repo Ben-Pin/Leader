@@ -5,7 +5,7 @@
     --sidebar-width: 224px;
     --previous-detail-width: 382px;
     grid-template-columns: var(--rail-width) var(--sidebar-width)
-      minmax(0, calc((100% - var(--rail-width) - var(--sidebar-width) - var(--previous-detail-width)) / 1.5))
+      minmax(0, calc((100% - var(--rail-width) - var(--sidebar-width) - var(--previous-detail-width)) / 1.875))
       minmax(0, 1fr);
   }
 }

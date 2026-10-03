@@ -3,7 +3,7 @@ import {
   Archive, ArrowDownWideNarrow, ArrowLeft, CalendarDays, Check, CheckCheck, ChevronDown,
   ChevronRight, Circle, CircleCheck, CircleHelp, CirclePlus, Clock3, Copy, Flag, Globe2,
   Hash, Inbox, LayoutList, LoaderCircle, Mail, MessageSquare, MoreHorizontal, Plus,
-  Search, Settings2, ShieldCheck, SlidersHorizontal, Star, Tag as TagIcon, Trash2, UserRound,
+  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Star, Tag as TagIcon, Trash2, UserRound,
   UsersRound, X, DollarSign, Truck, TriangleAlert, Undo2, Database, Download, Upload, Wrench,
 } from 'lucide-react';
 import { ApiError, request, selectCompany } from './api';
@@ -51,8 +51,13 @@ function quarterTag(date: string): Tag | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const year = Number(date.slice(0, 4));
   const name = `${year}-${Math.ceil(Number(date.slice(5, 7)) / 3)}`;
-  return { id: `quarter:${name}`, name, color: year >= 2026 ? '#36c96b' : year === 2025 ? '#88b66d' : year === 2024 ? '#e6a64b' : '#e27370' };
+  return { id: `quarter:${name}`, name, color: year >= 2026 ? '#36c96b' : year === 2025 ? '#88b66d' : year === 2024 ? '#e6a64b' : '#e27370', category: 'Time' };
 }
+function localToday(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function quarterForDate(date: string): string { return `${date.slice(0, 4)}-${Math.ceil(Number(date.slice(5, 7)) / 3)}`; }
 function draftFrom(card: Card): CardDraft {
   return { title: card.title, listId: card.listId, description: card.description || '', company: card.company || '',
     country: card.country || '', secondaryCountry: card.secondaryCountry || '', contactQuarter: card.contactQuarter, contacts: card.contacts || [], lastContact: card.lastContact || '',
@@ -107,9 +112,11 @@ export default function App() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [listError, setListError] = useState('');
   const [selected, setSelected] = useState<Card | null>(null);
+  const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [draft, setDraft] = useState<CardDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [retagging, setRetagging] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [conflict, setConflict] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -131,10 +138,13 @@ export default function App() {
   const commentContactIds = commentContacts.filter(id => eligibleContacts.some(c => c.id === id));
   const searchRef = useRef<HTMLInputElement>(null);
   const detailRequest = useRef(0);
+  const detailExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (detailExitTimer.current) clearTimeout(detailExitTimer.current); }, []);
   const listRequest = useRef(0);
   const initialSelectionDone = useRef(false);
   const selectedRef = useRef<Card | null>(null);
   const dirtyRef = useRef(false);
+  const discardPending = useRef(false);
   const bootstrapRef = useRef<Bootstrap | null>(null);
   const dirty = Boolean(selected && draft && JSON.stringify(draft) !== JSON.stringify(draftFrom(selected)));
   selectedRef.current = selected; dirtyRef.current = dirty; bootstrapRef.current = bootstrap;
@@ -154,7 +164,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', keydown);
   }, []);
   useEffect(() => {
-    const onBlur = () => { if (dirtyRef.current && !saveInFlight.current) void saveDraft(); };
+    const onBlur = () => { if (dirtyRef.current && !saveInFlight.current && !discardPending.current) void saveDraft(); };
     const onHidden = () => { if (document.visibilityState === 'hidden') onBlur(); };
     window.addEventListener('blur', onBlur);
     document.addEventListener('visibilitychange', onHidden);
@@ -201,6 +211,7 @@ export default function App() {
       if (!initialSelectionDone.current && page.items.length && window.innerWidth > 1000) {
         initialSelectionDone.current = true;
         setSelected(page.items[0]); setDraft(draftFrom(page.items[0]));
+        setDetailVisible(true);
       }
     }).catch(e => { if (e.name !== 'AbortError' && sequence === listRequest.current) { setListError(errorText(e)); setLoading(false); } });
     return () => controller.abort();
@@ -211,11 +222,19 @@ export default function App() {
     if (!dirtyRef.current && !saveInFlight.current) return true;
     return Boolean(await saveDraft());
   };
+  const hideDetail = () => {
+    detailRequest.current++;
+    setDetailVisible(false);
+    if (detailExitTimer.current) clearTimeout(detailExitTimer.current);
+    detailExitTimer.current = setTimeout(() => {
+      setSelected(null); setDraft(null); detailExitTimer.current = null;
+    }, 320);
+  };
   const discardAndClose = () => {
     if (saveInFlight.current) return;
     dirtyRef.current = false;
-    detailRequest.current++;
-    setSelected(null); setDraft(null); setSaveError(''); setConflict(false);
+    if (selected) setDraft(draftFrom(selected));
+    hideDetail(); setSaveError(''); setConflict(false);
   };
   const switchCompany = async (id: string) => {
     if (!(await guardChanges())) return;
@@ -223,12 +242,14 @@ export default function App() {
   };
   const chooseSelection = async (next: Selection) => {
     if (!(await guardChanges())) return;
-    setSelection(next); setSelected(null); setDraft(null); setSearch(''); setSidebarOpen(false); setTagPicker(false);
-    detailRequest.current++;
+    setSelection(next); hideDetail(); setSearch(''); setSidebarOpen(false); setTagPicker(false);
   };
   const openCard = async (card: Card, skipGuard = false) => {
-    if (!skipGuard && selected?.id === card.id) return;
+    if (!skipGuard && selected?.id === card.id && detailVisible) return;
     if (!skipGuard && !(await guardChanges())) return;
+    discardPending.current = false;
+    if (detailExitTimer.current) { clearTimeout(detailExitTimer.current); detailExitTimer.current = null; }
+    setDetailVisible(true);
     const sequence = ++detailRequest.current;
     setSelected(card); setDraft(draftFrom(card)); setSaveError(''); setConflict(false); setDetailTab('card'); setTagPicker(false); setComment(''); setCommentContacts([]); setCheckText('');
     setDetailLoading(true);
@@ -238,7 +259,7 @@ export default function App() {
     } catch (e) { if (sequence === detailRequest.current) setSaveError(errorText(e)); }
     finally { if (sequence === detailRequest.current) setDetailLoading(false); }
   };
-  const closeCard = async () => { if (!(await guardChanges())) return; detailRequest.current++; setSelected(null); setDraft(null); };
+  const closeCard = async () => { if (!(await guardChanges())) return; hideDetail(); };
   const openRelated = async (id: string) => {
     if (!(await guardChanges())) return;
     try { const card = await request<Card>(`/cards/${encodeURIComponent(id)}`); await openCard(card, true); }
@@ -317,7 +338,7 @@ export default function App() {
     if (modal !== 'archive') { if (await guardChanges()) setModal('archive'); return; }
     setModal(null);
     setSaving(true);
-    try { await writeCard(selected, { archived: true }); setSelected(null); setDraft(null); setRefreshKey(k => k + 1); await loadBootstrap(); setToast('Card archived'); }
+    try { await writeCard(selected, { archived: true }); hideDetail(); setRefreshKey(k => k + 1); await loadBootstrap(); setToast('Card archived'); }
     catch (e) { setSaveError(errorText(e)); }
     finally { setSaving(false); }
   };
@@ -345,6 +366,42 @@ export default function App() {
   const activeSidebar = (kind: Selection['kind'], id: string) => selection.kind === kind && selection.id === id;
   const openCreate = async () => { if (await guardChanges()) setModal('card'); };
   const openCompanies = async () => { if (await guardChanges()) setModal('companies'); };
+  const autoTagQuarters = async () => {
+    if (retagging || !(await guardChanges())) return;
+    setRetagging(true); setToast('Updating quarter tags…');
+    try {
+      let result: { updated: number; examined: number };
+      try {
+        result = await request<{ updated: number; examined: number }>('/cards/retag-quarters', { method: 'POST', body: {}, token: bootstrapRef.current?.csrfToken });
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 404) throw error;
+        let offset = 0, updated = 0, examined = 0, total = 0;
+        do {
+          const page = await request<CardPage>(`/cards?view=all&sort=title&limit=200&offset=${offset}`);
+          total = page.total; examined += page.items.filter(card => Boolean(card.lastContact)).length;
+          for (const card of page.items) {
+            if (!card.lastContact) continue;
+            const quarter = quarterForDate(card.lastContact);
+            if (card.contactQuarter === quarter) continue;
+            await request<Card>(`/cards/${encodeURIComponent(card.id)}`, { method: 'PATCH', body: { version: card.version, contactQuarter: quarter }, token: bootstrapRef.current?.csrfToken });
+            updated++;
+          }
+          offset += page.items.length;
+          if (!page.items.length) break;
+        } while (offset < total);
+        result = { updated, examined };
+      }
+      const currentId = selectedRef.current?.id;
+      if (currentId) {
+        const current = await request<Card>(`/cards/${encodeURIComponent(currentId)}`);
+        if (selectedRef.current?.id === currentId) { setSelected(current); setDraft(draftFrom(current)); }
+      }
+      setRefreshKey(key => key + 1);
+      await loadBootstrap();
+      setToast(`Quarter tags checked: ${result.examined} dated cards; ${result.updated} updated.`);
+    } catch (error) { setToast(errorText(error)); }
+    finally { setRetagging(false); }
+  };
   useEffect(() => {
     const onSave = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); if (dirty) void saveDraft(); }
@@ -368,6 +425,7 @@ export default function App() {
         <IconButton label="Search cards" className="rail-button" onClick={() => searchRef.current?.focus()}><Search size={22}/></IconButton>
         <IconButton label="New card" className="rail-button" onClick={openCreate}><CirclePlus size={22}/></IconButton>
         <IconButton label="Customer globe" className="rail-button" onClick={()=>setModal('globe')}><Globe2 size={22}/></IconButton>
+        <IconButton label="Auto-tag quarters from last contact dates" className="rail-button" onClick={autoTagQuarters} disabled={retagging}>{retagging ? <LoaderCircle size={22} className="spin"/> : <Sparkles size={22}/>}</IconButton>
       </div>
       <div className="rail-bottom"><IconButton label="Company databases" className="rail-button" onClick={openCompanies}><Database size={21}/></IconButton><button className="rail-avatar" onClick={() => setModal('profile')} aria-label={`Profile: ${userName}`} title={userName}><UserRound size={22}/></button></div>
     </aside>
@@ -420,9 +478,9 @@ export default function App() {
       <div className="main-footer"><span><ShieldCheck size={13}/>Saved on this computer</span><span>Leader</span></div>
     </main>
 
-    {selected && draft ? <aside className="detail-pane" aria-label="Customer card" onBlurCapture={event => { const next = event.relatedTarget as HTMLElement | null; if (next?.closest('[data-discard]')) return; if (!event.currentTarget.contains(next) && dirtyRef.current) void saveDraft(); }}>
-      <div className="detail-topbar"><button className="secondary-button save-button" data-discard onClick={discardAndClose} disabled={saving || detailLoading}><Undo2 size={15}/>Undo</button><div className="detail-topbar-actions">
-        <div className="traffic-lights" aria-label="Card flags">{workFlags.map(({ key, label, Icon }) => <button key={key} role="checkbox" className={`signal-button ${key} ${draft.flags[key].active ? 'selected' : ''}`} aria-label={`Flag ${label}`} title={label} aria-checked={draft.flags[key].active} onClick={() => updateDraft('flags', { ...draft.flags, [key]: { ...draft.flags[key], active: !draft.flags[key].active } })} disabled={saving || detailLoading}><Icon size={16}/></button>)}</div>
+    {selected && draft ? <aside key={selected.id} className={`detail-pane ${detailVisible ? 'detail-entering' : 'detail-exiting'}`} aria-label="Customer card" aria-hidden={!detailVisible} inert={!detailVisible} onBlurCapture={event => { const pane = event.currentTarget; const next = event.relatedTarget as HTMLElement | null; if (discardPending.current || next?.closest('[data-discard]')) return; if (!next) { const request = detailRequest.current; queueMicrotask(() => { if (request === detailRequest.current && !discardPending.current && !pane.contains(document.activeElement) && dirtyRef.current) void saveDraft(); }); return; } if (!pane.contains(next) && dirtyRef.current) void saveDraft(); }}>
+      <div className="detail-topbar"><button className="secondary-button save-button" data-discard onPointerDownCapture={() => { discardPending.current = true; }} onKeyDownCapture={event => { if (event.key === 'Enter' || event.key === ' ') discardPending.current = true; }} onClick={discardAndClose} disabled={saving || detailLoading}><Undo2 size={15}/>Undo</button><div className="detail-topbar-actions">
+        <div className="traffic-lights" aria-label="Card flags">{workFlags.map(({ key, label, Icon }) => <button key={key} role="checkbox" className={`signal-button ${key} ${draft.flags[key].active ? 'selected' : ''}`} aria-label={`Flag ${label}`} title={`${label} · updates last contact to today`} aria-checked={draft.flags[key].active} onClick={() => { const today = localToday(); setDraft(previous => previous ? { ...previous, lastContact: today, contactQuarter: quarterForDate(today), flags: { ...previous.flags, [key]: { ...previous.flags[key], active: !previous.flags[key].active } } } : previous); }} disabled={saving || detailLoading}><Icon size={16}/></button>)}</div>
         <span className="toolbar-divider"/><IconButton label="Close card" onClick={closeCard}><X size={19}/></IconButton>
       </div></div>
       <div className="detail-scroll" ref={detailScrollRef} inert={saving}>

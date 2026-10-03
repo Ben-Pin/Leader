@@ -1,0 +1,182 @@
+/* Quiet stained glass: cool translucent facets, raised edges, and readable content. */
+:root {
+  --glass-line: #ffffffcf;
+  --glass-shadow: 0 12px 28px #30477d12, 0 2px 7px #30477d0a;
+  --glass-blue: #eaf0ff;
+}
+
+.app-shell {
+  background: linear-gradient(135deg, #e8eefb, #f6f8fd 42%, #edf4fa);
+}
+.icon-rail {
+  background: linear-gradient(164deg, #536eb1 0%, #405ba5 48%, #344d95 100%);
+  box-shadow: inset -1px 0 #ffffff2b, inset 1px 0 #19357b33, 4px 0 18px #28478118;
+}
+.rail-button, .brand-mark {
+  box-shadow: inset 0 1px #ffffff2b, inset 0 -1px #1a347f38, 0 3px 7px #172d6920;
+  background: linear-gradient(145deg, #ffffff1f, #ffffff08 55%, #1f3d8a16);
+  transition: transform .23s ease, box-shadow .23s ease, background .23s ease;
+}
+.rail-button:hover, .brand-mark:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px #ffffff55, 0 7px 13px #1d377640;
+  background: linear-gradient(135deg, #ffffff38, #ffffff12);
+}
+.rail-button.selected-rail {
+  color: #fff;
+  background: linear-gradient(145deg, #ffffff40, #c3d3ff20);
+  box-shadow: inset 0 1px #ffffff9c, inset 0 -2px #1f3a8840, 0 5px 13px #18357a40;
+}
+.sidebar {
+  background: radial-gradient(circle at 92% 2%, #dce7ff88, transparent 26%), linear-gradient(165deg, #f9fbff, #f1f5fc 56%, #f8fbff);
+  box-shadow: inset 1px 0 #fff, 5px 0 22px #344f8110;
+  z-index: 2;
+}
+.company-switcher, .globe-preview {
+  background: linear-gradient(145deg, #ffffffee, #e9f0fcbd);
+  border-color: #ffffff;
+  box-shadow: var(--glass-shadow), inset 0 1px #fff;
+}
+.nav-item {
+  border: 1px solid transparent;
+  transition: transform .24s ease, background .24s ease, box-shadow .24s ease, border-color .24s ease;
+}
+.nav-item:hover {
+  transform: translateX(3px);
+  background: #ffffff9e;
+  border-color: #fff;
+  box-shadow: 0 4px 12px #4d68a113;
+}
+.nav-item.selected {
+  background: linear-gradient(110deg, #dfe8ff, #edf3ff 72%, #f4f7ff);
+  border-color: #ffffffed;
+  box-shadow: inset 0 1px #fff, inset 3px 0 #6287df, 0 5px 13px #4567a51e;
+}
+.main-pane {
+  background: linear-gradient(160deg, #ffffff 0%, #f8faff 45%, #f4f8fc 100%);
+  border-color: #dfe7f5;
+}
+.topbar, .list-header, .list-toolbar, .main-footer {
+  background: linear-gradient(120deg, #ffffffdb, #f8fbffdb 60%, #eef4ff99);
+  border-color: #e4eaf5;
+}
+.topbar { box-shadow: inset 0 1px #fff, 0 5px 17px #4d68a00c; }
+.search-box { border-radius: 11px; padding: 5px 10px; transition: background .25s, box-shadow .25s; }
+.search-box:focus-within { background: #fff; box-shadow: 0 4px 15px #4567a016, inset 0 0 0 1px #dfe8fb; }
+.primary-button {
+  background: linear-gradient(145deg, #6989e1, #4c70ce 62%, #4265bf);
+  box-shadow: inset 0 1px #ffffff8a, inset 0 -2px #254aa06b, 0 5px 12px #3b60b336;
+  transition: transform .22s, box-shadow .22s, filter .22s;
+}
+.primary-button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.06); box-shadow: inset 0 1px #fff9, 0 8px 18px #3b60b345; }
+.secondary-button {
+  background: linear-gradient(145deg, #fff, #edf2fb);
+  border-color: #dce5f4;
+  box-shadow: inset 0 1px #fff, 0 3px 8px #405b8b12;
+  transition: transform .22s, box-shadow .22s;
+}
+.secondary-button:hover { transform: translateY(-1px); box-shadow: inset 0 1px #fff, 0 5px 12px #405b8b21; }
+.card-row {
+  margin: 7px 5px 0;
+  border: 1px solid #ffffff;
+  border-radius: 13px;
+  background: linear-gradient(124deg, #ffffffed 0%, #f9fbffeb 61%, #f1f5fdeb 100%);
+  box-shadow: inset 0 1px #fff, 0 3px 11px #4b63900e;
+  transition: transform .27s cubic-bezier(.2,.7,.2,1), box-shadow .27s, background .27s, border-color .27s;
+}
+.card-row:after { display: none; }
+.card-row:hover {
+  transform: translateY(-2px);
+  border-color: #dce7fb;
+  background: linear-gradient(120deg, #fff, #f4f8ff 68%, #edf5ff);
+  box-shadow: inset 0 1px #fff, 0 11px 23px #4a67a21d;
+}
+.card-row.selected {
+  border-color: #c7d9fb;
+  background: linear-gradient(120deg, #edf4ff, #f9fbff 52%, #e8f1ff);
+  box-shadow: inset 0 1px #fff, inset 3px 0 #6385d6, 0 10px 23px #4c70ad1d;
+}
+.tag-badge { box-shadow: inset 0 1px #ffffffcc, 0 1px 3px #53699c16; }
+.signal-button {
+  background: radial-gradient(circle at 30% 22%, #fff, var(--signal-soft) 51%, color-mix(in srgb, var(--signal) 18%, white));
+  box-shadow: inset 0 2px #ffffffd9, inset 0 -2px #29446a20, 0 3px 8px #34527e1d;
+}
+.signal-button.selected { box-shadow: inset 0 2px #ffffff63, inset 0 -3px #14315e38, 0 4px 10px #29487935; }
+.detail-pane {
+  position: relative;
+  z-index: 3;
+  overflow: hidden;
+  border-left: 1px solid #ffffff;
+  background: radial-gradient(circle at 88% 0%, #dce8ff8c, transparent 25%), linear-gradient(160deg, #ffffff, #f8fbff 52%, #f1f6fd);
+  box-shadow: -13px 0 34px #2c497321, inset 1px 0 #fff;
+  transform-origin: right center;
+}
+.detail-pane::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #6d8ddc, #8fc5d8 32%, #c1b4e7 65%, #e9afbe);
+  opacity: .8;
+  z-index: 2;
+  pointer-events: none;
+}
+.detail-pane.detail-entering { animation: detail-slide-in .38s cubic-bezier(.2,.75,.2,1) both; }
+.detail-pane.detail-exiting { animation: detail-slide-out .32s cubic-bezier(.4,0,.7,.3) both; pointer-events: none; }
+@keyframes detail-slide-in { from { opacity: 0; transform: translateX(44px) scale(.985); filter: saturate(.85); } to { opacity: 1; transform: translateX(0) scale(1); filter: saturate(1); } }
+@keyframes detail-slide-out { from { opacity: 1; transform: translateX(0) scale(1); } to { opacity: 0; transform: translateX(44px) scale(.985); } }
+.detail-topbar, .detail-footer {
+  background: linear-gradient(110deg, #ffffffdc, #eaf1ffb0);
+  border-color: #dfe7f5;
+  box-shadow: inset 0 1px #fff;
+}
+.detail-tabs { border-color: #dbe5f4; }
+.detail-tabs>button.active:after { height: 3px; border-radius: 3px 3px 0 0; background: linear-gradient(90deg, #6789df, #a39ce2); box-shadow: 0 -2px 9px #6387e480; }
+.detail-pane .property-value input, .detail-pane .property-value select, .contact-row input, .contact-status select {
+  background: linear-gradient(145deg, #fff, #f3f7fe);
+  border-color: #e1e9f6;
+  box-shadow: inset 0 1px 2px #38527e0b, 0 1px 0 #fff;
+}
+.detail-pane .description-input, .comment-form textarea, .tag-picker, .relationships, .last-activity {
+  background: linear-gradient(140deg, #ffffffef, #eef4ffbd);
+  border: 1px solid #e1eafa;
+  border-radius: 10px;
+  box-shadow: inset 0 1px #fff, 0 6px 18px #3a5c9311;
+}
+.detail-pane .relationships { padding: 15px; }
+.detail-pane .description-input:focus, .detail-pane .property-value input:focus, .contact-row input:focus { background: #fff; box-shadow: 0 0 0 3px #bdd0ff9c, 0 5px 16px #4b6fa21a !important; }
+.detail-placeholder {
+  position: relative;
+  background: #253847 url('/weathered-antique-world-map-game-board.png') center / contain no-repeat;
+  box-shadow: inset 0 0 34px #0b1a2880;
+}
+.detail-placeholder > svg,
+.detail-placeholder > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.modal {
+  background: radial-gradient(circle at 88% 3%, #dce8ff, transparent 30%), linear-gradient(145deg, #ffffff, #f5f9ff);
+  border-color: #fff;
+  box-shadow: 0 26px 90px #1d376445, inset 0 1px #fff;
+}
+.modal-overlay { background: #1c315460; backdrop-filter: blur(8px); }
+@media (max-width: 1000px) {
+  .detail-is-open .detail-pane { box-shadow: -20px 0 48px #1e38654a, inset 1px 0 #fff; }
+}
+@media (min-width: 851px) and (max-width: 1000px) {
+  .app-shell { grid-template-columns: 52px 199px minmax(220px, 22vw) minmax(0, 1fr); }
+  .detail-placeholder { display: flex; }
+  .detail-is-open .detail-pane { position: relative; inset: auto; width: auto; z-index: 3; }
+  .detail-is-open .main-pane { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .detail-pane.detail-entering, .detail-pane.detail-exiting { animation: none !important; }
+  .card-row:hover, .nav-item:hover, .rail-button:hover, .brand-mark:hover, .primary-button:hover, .secondary-button:hover { transform: none !important; }
+}
