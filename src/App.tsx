@@ -9,6 +9,7 @@ import {
 import { ApiError, request, selectCompany } from './api';
 import { Relationships } from './Relationships';
 import { ClientGlobe } from './ClientGlobe';
+import { GameTokenArt, GameTokenGallery, gameTokens } from './GameTokens';
 import { countryNames,tagCategory } from './geography';
 import './workspaces.css';
 import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag, FlagKey, CompanyDatabase, ContactStatus, AccountType } from './types';
@@ -120,8 +121,12 @@ export default function App() {
   const [saveError, setSaveError] = useState('');
   const [conflict, setConflict] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [modal, setModal] = useState<'card' | 'list' | 'tag' | 'about' | 'archive' | 'companies' | 'globe' | 'profile' | null>(null);
+  const [modal, setModal] = useState<'card' | 'list' | 'tag' | 'about' | 'archive' | 'companies' | 'globe' | 'profile' | 'gameTokens' | null>(null);
   const [userName,setUserName]=useState(()=>localStorage.getItem('leader.userName')||'Local user');
+  const [gameTokenId, setGameTokenId] = useState(() => {
+    const stored = localStorage.getItem('leader.gameToken');
+    return gameTokens.some(token => token.id === stored) ? stored! : 'tux';
+  });
   const saveInFlight = useRef<Promise<Card | null> | null>(null);
   const [toast, setToast] = useState('');
   const [detailTab, setDetailTab] = useState<'card' | 'contacts' | 'activity'>('card');
@@ -432,7 +437,7 @@ export default function App() {
 
     {sidebarOpen && <button className="sidebar-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>}
     <aside className="sidebar" aria-label="Lists and tags">
-      <div className="workspace-heading"><div><span className="brand-name">Leader<span className="brand-dot">.</span></span><span className="workspace-caption">of the lead-free world</span></div><img className="leader-mascot" src="/tux-pewter.png" alt="Tux — pewter mascot" title="Tux" width="48" height="56" draggable={false}/></div>
+      <div className="workspace-heading"><div><span className="brand-name">Leader<span className="brand-dot">.</span></span><span className="workspace-caption">of the lead-free world</span></div><button type="button" className="game-token-trigger" aria-label={`Choose game piece, current: ${gameTokens.find(token => token.id === gameTokenId)?.name || 'Tux'}`} title="Choose game piece" onClick={() => setModal('gameTokens')}><GameTokenArt id={gameTokenId} large/></button></div>
       <div className="company-switcher"><Database size={15}/><select aria-label="Connected company" value={bootstrap.company.id} onChange={e => switchCompany(e.target.value)} disabled={saving || detailLoading}>{bootstrap.companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select><IconButton label="Import and export company" onClick={openCompanies}><Settings2 size={15}/></IconButton></div>
       <nav className="smart-lists">
         <NavItem icon={<Inbox size={18}/>} label="All cards" count={bootstrap.stats.total} selected={activeSidebar('view', 'all')} onClick={() => chooseSelection({ kind: 'view', id: 'all' })}/>
@@ -538,6 +543,7 @@ export default function App() {
     <datalist id="country-options">{countryNames.map(name=><option key={name} value={name}/>)}</datalist>
     {modal==='globe'&&<Modal title={`Geography · ${bootstrap.company.name}`} className="globe-modal" onClose={()=>setModal(null)}><ClientGlobe expanded selected={selected} refresh={refreshKey} query={queryString()} onOpen={async id=>{setModal(null);await openRelated(id);}}/></Modal>}
     {modal==='profile'&&<Modal title="Local user" onClose={()=>setModal(null)}><form className="create-form" onSubmit={e=>{e.preventDefault();const name=userName.trim()||'Local user';setUserName(name);localStorage.setItem('leader.userName',name);setModal(null);}}><label>Display name<input value={userName} maxLength={80} onChange={e=>setUserName(e.target.value)}/></label><p>Local profile for this browser. Cloud sign-in is not used.</p><button className="primary-button">Save</button></form></Modal>}
+    {modal==='gameTokens'&&<Modal title="Choose a game piece" className="game-token-modal" onClose={()=>setModal(null)}><GameTokenGallery selectedId={gameTokenId} onSelect={id=>{setGameTokenId(id);localStorage.setItem('leader.gameToken',id);setModal(null);}}/></Modal>}
     {modal === 'companies' && <CompaniesModal bootstrap={bootstrap} onClose={() => setModal(null)} onChanged={()=>loadBootstrap()} onConnected={company => switchCompany(company.id)}/>}
 
     {modal === 'archive' && selected && <Modal title="Move to archive?" onClose={() => setModal(null)}><p>Card «{selected.title}» will remain in the local database. It can be restored through the connector.</p>{dirty && <p className="error-message">Unsaved card changes will be discarded.</p>}<div className="modal-actions"><button className="secondary-button" onClick={() => setModal(null)}>Cancel</button><button className="primary-button" onClick={archiveCard}>Archive</button></div></Modal>}
