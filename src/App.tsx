@@ -9,7 +9,7 @@ import {
 import { ApiError, request, selectCompany } from './api';
 import { Relationships } from './Relationships';
 import { ClientGlobe } from './ClientGlobe';
-import { GameTokenArt, GameTokenGallery, gameTokens } from './GameTokens';
+import { GameTokenArt, GameTokenGallery, gameTokens, useGameTokenHold } from './GameTokens';
 import { countryNames,tagCategory } from './geography';
 import './workspaces.css';
 import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag, FlagKey, CompanyDatabase, ContactStatus, AccountType } from './types';
@@ -127,6 +127,7 @@ export default function App() {
     const stored = localStorage.getItem('leader.gameToken');
     return gameTokens.some(token => token.id === stored) ? stored! : 'tux';
   });
+  const mascotHold = useGameTokenHold();
   const saveInFlight = useRef<Promise<Card | null> | null>(null);
   const [toast, setToast] = useState('');
   const [detailTab, setDetailTab] = useState<'card' | 'contacts' | 'activity'>('card');
@@ -437,7 +438,7 @@ export default function App() {
 
     {sidebarOpen && <button className="sidebar-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}/>}
     <aside className="sidebar" aria-label="Lists and tags">
-      <div className="workspace-heading"><div><span className="brand-name">Leader<span className="brand-dot">.</span></span><span className="workspace-caption">of the lead-free world</span></div><button type="button" className="game-token-trigger" aria-label={`Choose game piece, current: ${gameTokens.find(token => token.id === gameTokenId)?.name || 'Tux'}`} title="Choose game piece" onClick={() => setModal('gameTokens')}><GameTokenArt id={gameTokenId} large/></button></div>
+      <div className="workspace-heading"><div><span className="brand-name">Leader<span className="brand-dot">.</span></span><span className="workspace-caption">of the lead-free world</span></div><button type="button" className={`game-token-trigger ${mascotHold.heldId === gameTokenId ? 'is-held' : ''}`} style={mascotHold.heldId === gameTokenId ? mascotHold.wobbleStyle : undefined} aria-label={`Choose game piece, current: ${gameTokens.find(token => token.id === gameTokenId)?.name || 'Tux'}`} title="Choose game piece" onDragStart={event => event.preventDefault()} onPointerDown={event => { if (event.button === 0) mascotHold.press(gameTokenId); }} onClick={() => setModal('gameTokens')}><GameTokenArt id={gameTokenId} large/></button></div>
       <div className="company-switcher"><Database size={15}/><select aria-label="Connected company" value={bootstrap.company.id} onChange={e => switchCompany(e.target.value)} disabled={saving || detailLoading}>{bootstrap.companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</select><IconButton label="Import and export company" onClick={openCompanies}><Settings2 size={15}/></IconButton></div>
       <nav className="smart-lists">
         <NavItem icon={<Inbox size={18}/>} label="All cards" count={bootstrap.stats.total} selected={activeSidebar('view', 'all')} onClick={() => chooseSelection({ kind: 'view', id: 'all' })}/>

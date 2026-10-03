@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   Anchor, Bike, Bird, BookOpen, Bug, BusFront, Camera, Car, Cat, CloudRain,
   Coffee, Compass, Crown, Dice5, Dog, Fish, Flame, Flower2, Gamepad2, Gem,
@@ -18,7 +18,7 @@ const finishedPieces: Record<string, Pick<GameToken, 'name' | 'group' | 'image'>
   plane: { name: 'Propeller plane', group: 'Travel', image: '/tokens/propeller-plane.png' },
   ship: { name: 'Tugboat', group: 'Travel', image: '/tokens/tugboat.png' },
   train: { name: 'Steam train', group: 'Travel', image: '/tokens/steam-train.png' },
-  cat: { name: 'Lucky cat', group: 'Animals', image: '/tokens/lucky-cat.png' },
+  cat: { name: 'Lucky cat', group: 'Mascot', image: '/tokens/lucky-cat.png' },
   dog: { name: 'Puppy', group: 'Animals', image: '/tokens/puppy.png' },
   rocket: { name: 'Rocket', group: 'Travel', image: '/tokens/rocket.png' },
   globe: { name: 'Globe', group: 'Treasures', image: '/tokens/globe.png' },
@@ -29,7 +29,34 @@ const finishedPieces: Record<string, Pick<GameToken, 'name' | 'group' | 'image'>
   parrot: { name: 'Parrot', group: 'Animals', image: '/tokens/parrot.png' },
   pelican: { name: 'Pelican', group: 'Animals', image: '/tokens/pelican.png' },
   bus: { name: 'Double-decker bus', group: 'Travel', image: '/tokens/double-decker-bus.png' },
+  camera: { name: 'Vintage camera', group: 'Everyday', image: '/tokens/vintage-camera.png' },
+  telescope: { name: 'Spyglass telescope', group: 'Everyday', image: '/tokens/telescope.png' },
 };
+
+const newPieces: GameToken[] = [
+  { id: 'apple', name: 'Apple', group: 'Nature', color: '#c53833', image: '/tokens/apple.png' },
+  { id: 'pineapple', name: 'Pineapple', group: 'Nature', color: '#d9a43d', image: '/tokens/pineapple.png' },
+  { id: 'sheep', name: 'Sheep', group: 'Animals', color: '#e7d9bd', image: '/tokens/sheep.png' },
+  { id: 'scientist', name: 'Scientist', group: 'Everyday', color: '#b88a68', image: '/tokens/scientist.png' },
+  { id: 'boot', name: 'Hiking boot', group: 'Everyday', color: '#a7673d', image: '/tokens/hiking-boot.png' },
+  { id: 'robot', name: 'Tin robot', group: 'Everyday', color: '#6994ae', image: '/tokens/tin-robot.png' },
+  { id: 'typewriter', name: 'Typewriter', group: 'Everyday', color: '#a8844d', image: '/tokens/typewriter.png' },
+  { id: 'telephone', name: 'Rotary telephone', group: 'Everyday', color: '#8c795c', image: '/tokens/rotary-telephone.png' },
+  { id: 'knight', name: 'Chess knight', group: 'Treasures', color: '#bc8652', image: '/tokens/chess-knight.png' },
+  { id: 'owl', name: 'Owl', group: 'Animals', color: '#9b754c', image: '/tokens/owl.png' },
+  { id: 'cactus', name: 'Flowering cactus', group: 'Nature', color: '#5a9b6f', image: '/tokens/cactus.png' },
+  { id: 'balloon', name: 'Hot-air balloon', group: 'Travel', color: '#be7565', image: '/tokens/hot-air-balloon.png' },
+  { id: 'metal-rocker', name: 'Metal rocker', group: 'Mascot', color: '#b88055', image: '/tokens/metal-rocker.png' },
+  { id: 'cyborg-gentleman', name: 'Cyborg gentleman', group: 'Mascot', color: '#8c8f9d', image: '/tokens/cyborg-gentleman.png' },
+  { id: 'pastel-unicorn', name: 'Pastel unicorn', group: 'Animals', color: '#c799ca', image: '/tokens/pastel-unicorn.png' },
+  { id: 'lemur', name: 'Lemur', group: 'Animals', color: '#b9a994', image: '/tokens/lemur.png' },
+  { id: 'astronaut-helmet', name: 'Astronaut helmet', group: 'Travel', color: '#c6aa92', image: '/tokens/astronaut-helmet.png' },
+  { id: 'red-octopus', name: 'Red octopus', group: 'Animals', color: '#cb574f', image: '/tokens/red-octopus.png' },
+  { id: 'raven', name: 'Raven', group: 'Animals', color: '#505e81', image: '/tokens/raven.png' },
+  { id: 'arcade-cabinet', name: 'Arcade cabinet', group: 'Everyday', color: '#5680a2', image: '/tokens/arcade-cabinet.png' },
+  { id: 'mars-rover', name: 'Mars rover', group: 'Travel', color: '#b79c78', image: '/tokens/mars-rover.png' },
+  { id: 'armored-soldier', name: 'Armored soldier', group: 'Mascot', color: '#708468', image: '/tokens/armored-soldier.png' },
+];
 
 const enamel = ['#bd7953', '#608c9f', '#b69046', '#6f927b', '#8b79a5', '#ba6c77', '#6786ab', '#a58060', '#78987d', '#ad8859'];
 const entries: [string, string, TokenGroup, LucideIcon][] = [
@@ -65,14 +92,53 @@ export const gameTokens: GameToken[] = [
     color: enamel[index % enamel.length],
     image: finishedPieces[id]?.image,
   })),
+  ...newPieces,
 ];
 
-const finishedOrder = ['tux', 'car', 'plane', 'ship', 'train', 'cat', 'dog', 'rocket', 'globe', 'gift', 'rabbit', 'lion', 'hippo', 'parrot', 'pelican', 'bus'];
+const finishedOrder = ['tux', 'car', 'plane', 'ship', 'train', 'cat', 'dog', 'rocket', 'globe', 'gift', 'rabbit', 'lion', 'hippo', 'parrot', 'pelican', 'bus', 'apple', 'pineapple', 'sheep', 'scientist', 'boot', 'camera', 'robot', 'typewriter', 'telephone', 'knight', 'owl', 'cactus', 'telescope', 'balloon', 'metal-rocker', 'cyborg-gentleman', 'pastel-unicorn', 'lemur', 'astronaut-helmet', 'red-octopus', 'raven', 'arcade-cabinet', 'mars-rover', 'armored-soldier'];
 gameTokens.sort((a, b) => {
   const aIndex = finishedOrder.indexOf(a.id);
   const bIndex = finishedOrder.indexOf(b.id);
   return (aIndex < 0 ? 50 : aIndex) - (bIndex < 0 ? 50 : bIndex);
 });
+
+type WobbleStyle = CSSProperties & { '--wobble-from': string; '--wobble-to': string };
+export function useGameTokenHold() {
+  const [heldId, setHeldId] = useState<string | null>(null);
+  const [wobbleStyle, setWobbleStyle] = useState<WobbleStyle | undefined>();
+  const holdTimer = useRef<number | null>(null);
+  const release = useCallback(() => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+    setHeldId(null);
+  }, []);
+  useEffect(() => {
+    const onVisibilityChange = () => { if (document.hidden) release(); };
+    window.addEventListener('pointerup', release, true);
+    window.addEventListener('pointercancel', release, true);
+    window.addEventListener('blur', release);
+    window.addEventListener('scroll', release, true);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+      window.removeEventListener('pointerup', release, true);
+      window.removeEventListener('pointercancel', release, true);
+      window.removeEventListener('blur', release);
+      window.removeEventListener('scroll', release, true);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [release]);
+  const press = (id: string) => {
+    release();
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    setWobbleStyle({ '--wobble-from': `${-0.8 * direction}deg`, '--wobble-to': `${1.2 * direction}deg` });
+    holdTimer.current = window.setTimeout(() => {
+      setHeldId(id);
+      holdTimer.current = null;
+    }, 350);
+  };
+  return { heldId, wobbleStyle, press, release };
+}
 
 export function GameTokenArt({ id, large = false }: { id: string; large?: boolean }) {
   const token = gameTokens.find(item => item.id === id) || gameTokens[0];
@@ -86,17 +152,21 @@ export function GameTokenArt({ id, large = false }: { id: string; large?: boolea
 export function GameTokenGallery({ selectedId, onSelect }: { selectedId: string; onSelect: (id: string) => void }) {
   const [search, setSearch] = useState('');
   const [group, setGroup] = useState<TokenGroup | 'All'>('All');
+  const [previewId, setPreviewId] = useState(selectedId);
+  const hold = useGameTokenHold();
+  const choose = (id: string) => { hold.release(); onSelect(id); };
   const groups: (TokenGroup | 'All')[] = ['All', 'Mascot', 'Travel', 'Animals', 'Nature', 'Treasures', 'Everyday'];
   const shown = gameTokens.filter(token => (group === 'All' || token.group === group) && token.name.toLowerCase().includes(search.trim().toLowerCase()));
   return <div className="game-token-gallery">
-    <p>Choose a game piece. Finished figurines appear first; the remaining slots are previews for future batches. Your choice is saved in this browser.</p>
+    <p>Click to preview, double-click to choose. Hold a piece for a larger view. Your choice is saved in this browser.</p>
     <div className="game-token-gallery-tools">
-      <input aria-label="Search game pieces" placeholder="Search 50 pieces" value={search} onChange={event => setSearch(event.target.value)}/>
+      <input aria-label="Search game pieces" placeholder={`Search ${gameTokens.length} pieces`} value={search} onChange={event => setSearch(event.target.value)}/>
       <div className="game-token-groups" aria-label="Game piece groups">{groups.map(name => <button key={name} type="button" aria-pressed={group === name} onClick={() => setGroup(name)}>{name}</button>)}</div>
     </div>
-    <div className="game-token-grid">{shown.map(token => <button key={token.id} type="button" className="game-token-option" aria-label={`Choose ${token.name} game piece`} aria-pressed={selectedId === token.id} onClick={() => onSelect(token.id)}>
+    <div className="game-token-grid">{shown.map(token => <button key={token.id} type="button" className={`game-token-option ${hold.heldId === token.id ? 'is-held' : ''}`} style={hold.heldId === token.id ? hold.wobbleStyle : undefined} aria-label={`Preview ${token.name} game piece; double-click to choose`} aria-pressed={previewId === token.id} onDragStart={event => event.preventDefault()} onPointerDown={event => { if (event.button === 0) hold.press(token.id); }} onClick={() => setPreviewId(token.id)} onDoubleClick={() => choose(token.id)}>
       <GameTokenArt id={token.id}/><span>{token.name}</span>
     </button>)}</div>
     {!shown.length && <p className="game-token-no-results">No pieces match that search.</p>}
+    <div className="game-token-gallery-actions"><span>Selected preview: {gameTokens.find(token => token.id === previewId)?.name}</span><button type="button" onClick={() => choose(previewId)}>Use this piece</button></div>
   </div>;
 }
