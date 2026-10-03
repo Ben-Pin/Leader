@@ -1,6 +1,6 @@
 # Leader game pieces
 
-The default piece is the user's hand-painted Tux figurine in `public/tokens/tux-hand-painted.png`. The source image was supplied with a black background; the project asset is a transparent cutout made with the built-in image generation tool. The prompt preserved the figure's pose, painted surface, and colors while removing only the background. Tux sits without a base. Other pieces retain the gallery's shared small base.
+The default piece is the user's hand-painted Tux figurine in `public/tokens/tux-hand-painted.png`. The source image was supplied with a black background; the project asset is a transparent cutout made with the built-in image generation tool. The prompt preserved the figure's pose, painted surface, and colors while removing only the background. No piece has an added UI pedestal or circular base; details that belong to the source illustration remain part of its PNG.
 
 `src/GameTokens.tsx` defines 50 local choices: 16 finished transparent figurines and 34 preview icons that will be replaced as the user supplies more contact sheets. The chosen ID is stored in this browser under `leader.gameToken`. The gallery offers search and category filters. All pieces work offline; no user content or selection is sent to an external service.
 

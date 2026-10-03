@@ -77,10 +77,9 @@ gameTokens.sort((a, b) => {
 export function GameTokenArt({ id, large = false }: { id: string; large?: boolean }) {
   const token = gameTokens.find(item => item.id === id) || gameTokens[0];
   const Icon = token.Icon;
-  return <span className={`game-token-art ${large ? 'large' : ''} ${token.image ? 'is-image' : ''} ${token.id === 'tux' ? 'is-tux' : ''}`} style={{ '--token-enamel': token.color } as CSSProperties} aria-hidden="true">
+  return <span className={`game-token-art ${large ? 'large' : ''} ${token.image ? 'is-image' : ''}`} style={{ '--token-enamel': token.color } as CSSProperties} aria-hidden="true">
     <span className="game-token-aura"/>
     <span className="game-token-figure">{token.image ? <img src={token.image} alt="" draggable={false}/> : Icon ? <Icon strokeWidth={1.75}/> : null}</span>
-    {token.id !== 'tux' && <span className="game-token-base"/>}
   </span>;
 }
 

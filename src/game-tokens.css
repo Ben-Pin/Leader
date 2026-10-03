@@ -81,17 +81,7 @@
   transform: perspective(140px) rotateX(-7deg);
 }
 .game-token-figure > img { display: block; width: 116%; height: 116%; object-fit: contain; max-width: none; }
-.game-token-art.is-image .game-token-figure { left: 2%; right: 2%; top: 0; bottom: 10%; }
-.game-token-art.is-tux .game-token-figure { bottom: 0; }
-.game-token-base {
-  position: absolute;
-  z-index: 1;
-  left: 9%; right: 9%; bottom: 1%; height: 17%;
-  border-radius: 50%;
-  background: linear-gradient(#fff6d3 0 7%, #bda576 12%, #635748 45%, #292b30 70%, #b9995d 89%, #645139 100%);
-  border: 1px solid #7c6646;
-  box-shadow: inset 0 2px 2px #fff7dba6, 0 3px 0 #4e4137, 0 7px 8px #25354b66;
-}
+.game-token-art.is-image .game-token-figure { left: 2%; right: 2%; top: 0; bottom: 0; }
 .game-token-art.large .game-token-figure > svg { padding: 10px; }
 .game-token-gallery > p { margin: -4px 0 16px; color: #71809a; font-size: 12px; }
 .game-token-gallery-tools { display: grid; gap: 12px; margin-bottom: 16px; }
