@@ -31,6 +31,7 @@ const finishedPieces: Record<string, Pick<GameToken, 'name' | 'group' | 'image'>
   bus: { name: 'Double-decker bus', group: 'Travel', image: '/tokens/double-decker-bus.png' },
   camera: { name: 'Vintage camera', group: 'Everyday', image: '/tokens/vintage-camera.png' },
   telescope: { name: 'Spyglass telescope', group: 'Everyday', image: '/tokens/telescope.png' },
+  crown: { name: 'Royal crown', group: 'Treasures', image: '/tokens/royal-crown.png' },
 };
 
 const newPieces: GameToken[] = [
@@ -56,6 +57,15 @@ const newPieces: GameToken[] = [
   { id: 'arcade-cabinet', name: 'Arcade cabinet', group: 'Everyday', color: '#5680a2', image: '/tokens/arcade-cabinet.png' },
   { id: 'mars-rover', name: 'Mars rover', group: 'Travel', color: '#b79c78', image: '/tokens/mars-rover.png' },
   { id: 'armored-soldier', name: 'Armored soldier', group: 'Mascot', color: '#708468', image: '/tokens/armored-soldier.png' },
+  { id: 'ornate-seahorse', name: 'Ornate seahorse', group: 'Animals', color: '#427daa', image: '/tokens/ornate-seahorse.png' },
+  { id: 'diving-helmet', name: 'Diving helmet', group: 'Travel', color: '#ad7951', image: '/tokens/diving-helmet.png' },
+  { id: 'armillary-sphere', name: 'Armillary sphere', group: 'Treasures', color: '#447eaa', image: '/tokens/armillary-sphere.png' },
+  { id: 'lighthouse', name: 'Lighthouse', group: 'Travel', color: '#b95d56', image: '/tokens/lighthouse.png' },
+  { id: 'violin', name: 'Violin and bow', group: 'Everyday', color: '#9f663e', image: '/tokens/violin.png' },
+  { id: 'hourglass', name: 'Hourglass', group: 'Treasures', color: '#4c82ae', image: '/tokens/hourglass.png' },
+  { id: 'explorer-map', name: "Explorer's map", group: 'Treasures', color: '#bf8954', image: '/tokens/explorer-map.png' },
+  { id: 'dragon', name: 'Dragon', group: 'Animals', color: '#bf5242', image: '/tokens/dragon.png' },
+  { id: 'gramophone', name: 'Gramophone', group: 'Everyday', color: '#527a50', image: '/tokens/gramophone.png' },
 ];
 
 const enamel = ['#bd7953', '#608c9f', '#b69046', '#6f927b', '#8b79a5', '#ba6c77', '#6786ab', '#a58060', '#78987d', '#ad8859'];
@@ -95,7 +105,7 @@ export const gameTokens: GameToken[] = [
   ...newPieces,
 ];
 
-const finishedOrder = ['tux', 'car', 'plane', 'ship', 'train', 'cat', 'dog', 'rocket', 'globe', 'gift', 'rabbit', 'lion', 'hippo', 'parrot', 'pelican', 'bus', 'apple', 'pineapple', 'sheep', 'scientist', 'boot', 'camera', 'robot', 'typewriter', 'telephone', 'knight', 'owl', 'cactus', 'telescope', 'balloon', 'metal-rocker', 'cyborg-gentleman', 'pastel-unicorn', 'lemur', 'astronaut-helmet', 'red-octopus', 'raven', 'arcade-cabinet', 'mars-rover', 'armored-soldier'];
+const finishedOrder = ['tux', 'car', 'plane', 'ship', 'train', 'cat', 'dog', 'rocket', 'globe', 'gift', 'rabbit', 'lion', 'hippo', 'parrot', 'pelican', 'bus', 'apple', 'pineapple', 'sheep', 'scientist', 'boot', 'camera', 'robot', 'typewriter', 'telephone', 'knight', 'owl', 'cactus', 'telescope', 'balloon', 'metal-rocker', 'cyborg-gentleman', 'pastel-unicorn', 'lemur', 'astronaut-helmet', 'red-octopus', 'raven', 'arcade-cabinet', 'mars-rover', 'armored-soldier', 'ornate-seahorse', 'crown', 'diving-helmet', 'armillary-sphere', 'lighthouse', 'violin', 'hourglass', 'explorer-map', 'dragon', 'gramophone'];
 gameTokens.sort((a, b) => {
   const aIndex = finishedOrder.indexOf(a.id);
   const bIndex = finishedOrder.indexOf(b.id);

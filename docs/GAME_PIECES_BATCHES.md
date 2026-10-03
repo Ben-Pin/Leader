@@ -54,22 +54,22 @@ Source: `docs/token-source-sheets/batch-3-colorful-vintage-miniature-collection.
 | 9 | Spyglass telescope | `public/tokens/telescope.png` |
 | 10 | Hot-air balloon | `public/tokens/hot-air-balloon.png` |
 
-## Batch 4 — Ten Ornate Vintage Miniature Collectibles (queued)
+## Batch 4 — Ten Ornate Vintage Miniature Collectibles
 
-Source: `docs/token-source-sheets/batch-4-ten-ornate-vintage-miniature-collectibles.png`. Each numbered piece will be produced once as a separate transparent PNG, then added to Leader. None of these are final assets yet.
+Source: `docs/token-source-sheets/batch-4-ten-ornate-vintage-miniature-collectibles.png`. All ten pieces are finished and available in Leader. The illustrated structural supports and cases are retained; no generic pedestal was added.
 
-| Number | Piece |
-| --- | --- |
-| 1 | Seahorse |
-| 2 | Crown |
-| 3 | Diving helmet |
-| 4 | Armillary sphere |
-| 5 | Lighthouse |
-| 6 | Violin and bow |
-| 7 | Hourglass |
-| 8 | Explorer's map and compass |
-| 9 | Dragon |
-| 10 | Gramophone |
+| Number | Piece | File |
+| --- | --- | --- |
+| 1 | Seahorse | `public/tokens/ornate-seahorse.png` |
+| 2 | Crown | `public/tokens/royal-crown.png` |
+| 3 | Diving helmet | `public/tokens/diving-helmet.png` |
+| 4 | Armillary sphere | `public/tokens/armillary-sphere.png` |
+| 5 | Lighthouse | `public/tokens/lighthouse.png` |
+| 6 | Violin and bow | `public/tokens/violin.png` |
+| 7 | Hourglass | `public/tokens/hourglass.png` |
+| 8 | Explorer's map and compass | `public/tokens/explorer-map.png` |
+| 9 | Dragon | `public/tokens/dragon.png` |
+| 10 | Gramophone | `public/tokens/gramophone.png` |
 
 ## Batch 5 — Vintage Metal Figurine Collection
 
@@ -94,4 +94,4 @@ For each numbered item, the built-in image generation tool received the relevant
 
 > Use case: background-extraction. Asset: one final collectible game figurine PNG for the user's separate one-off asset preparation. The attached numbered contact sheet is the exact visual reference. Extract ONLY figurine number [number, subject] and refine it into a clean, complete, standalone miniature. Preserve its original pose, silhouette, hand-painted worn enamel texture, metallic accents, color palette and proportions. Place on a genuinely transparent square canvas, centered, with the COMPLETE figurine occupying about 86% of both its relevant width/height and a consistent 7% transparent margin, matching the other pieces in this batch. No tabletop, gray backdrop, cast shadow, number, label, other figurines, new pedestal, or text.
 
-The same composition and transparency constraints were used for Batches 1, 2, and 5, with each respective figurine's defining details named in its prompt. Tux used the dedicated cutout prompt recorded in `MASCOT.md`. The Batch 5 octopus had one additional edit prompt asking to mirror the completed figurine horizontally while preserving its texture, colors, proportions, and transparent canvas.
+The same composition and transparency constraints were used for Batches 1, 2, 4, and 5, with each respective figurine's defining details named in its prompt. Tux used the dedicated cutout prompt recorded in `MASCOT.md`. The Batch 5 octopus had one additional edit prompt asking to mirror the completed figurine horizontally while preserving its texture, colors, proportions, and transparent canvas.
