@@ -3,7 +3,7 @@ import {
   Archive, ArrowDownWideNarrow, ArrowLeft, CalendarDays, Check, CheckCheck, ChevronDown,
   ChevronRight, Circle, CircleCheck, CircleHelp, CirclePlus, Clock3, Copy, Flag, Globe2,
   Hash, Inbox, LayoutList, LoaderCircle, Mail, MessageSquare, MoreHorizontal, Plus,
-  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Star, Tag as TagIcon, Trash2, UserRound,
+  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Star, Tag as TagIcon, Trash2, UserRound, Minus,
   UsersRound, X, DollarSign, Truck, TriangleAlert, Undo2, Database, Download, Upload, Wrench,
 } from 'lucide-react';
 import { ApiError, request, selectCompany } from './api';
@@ -118,6 +118,8 @@ export default function App() {
   const [draft, setDraft] = useState<CardDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [retagging, setRetagging] = useState(false);
+  const [exportingList, setExportingList] = useState(false);
+  const [wisdomEnabled, setWisdomEnabled] = useState(() => localStorage.getItem('leader.wisdomEnabled') === 'true');
   const [saveError, setSaveError] = useState('');
   const [conflict, setConflict] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -372,6 +374,41 @@ export default function App() {
   const activeSidebar = (kind: Selection['kind'], id: string) => selection.kind === kind && selection.id === id;
   const openCreate = async () => { if (await guardChanges()) setModal('card'); };
   const openCompanies = async () => { if (await guardChanges()) setModal('companies'); };
+  const exportCurrentList = async () => {
+    if (!bootstrap || exportingList || !(await guardChanges())) return;
+    setExportingList(true);
+    try {
+      const query = new URLSearchParams(queryString());
+      query.set('limit', '200');
+      const exported: Card[] = [];
+      let expected = 0;
+      do {
+        query.set('offset', String(exported.length));
+        const page = await request<CardPage>(`/cards?${query}`);
+        expected = page.total;
+        if (!page.items.length && exported.length < expected) throw new Error('Export stopped before all cards were loaded.');
+        exported.push(...page.items);
+      } while (exported.length < expected);
+      const listName = debouncedSearch.trim() ? 'Search results' : displayListName(title || 'All cards');
+      const bundle = { format: 'leader-list', version: 1, exportedAt: new Date().toISOString(),
+        company: bootstrap.company, selection: { ...selection, name: listName, search: debouncedSearch.trim(), sort },
+        total: exported.length, cards: exported };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `Leader-${bootstrap.company.name}-${listName}`.replace(/[^\p{L}\p{N} _-]/gu, '_') + '.json';
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setToast(`Exported ${exported.length.toLocaleString('en-GB')} cards.`);
+    } catch (error) { setToast(errorText(error)); }
+    finally { setExportingList(false); }
+  };
+  const toggleWisdom = () => {
+    const next = !wisdomEnabled;
+    setWisdomEnabled(next);
+    localStorage.setItem('leader.wisdomEnabled', String(next));
+    setToast(next ? 'Wisdom enabled. Add a source to show thought cards.' : 'Wisdom disabled.');
+  };
   const autoTagQuarters = async () => {
     if (retagging || !(await guardChanges())) return;
     setRetagging(true); setToast('Updating quarter tags…');
@@ -460,7 +497,18 @@ export default function App() {
         <div className="search-box"><Search size={17}/><input ref={searchRef} maxLength={200} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search the entire database" aria-label="Search cards"/>{search ? <IconButton label="Clear search" onClick={() => setSearch('')}><X size={14}/></IconButton> : <kbd>Ctrl K</kbd>}</div>
         {bootstrap.demo && <span className="demo-pill"><span/>Demo</span>}
       </div>
-      <div className="list-header"><div className="list-heading"><div className="eyebrow">{bootstrap.company.name}</div><h1>{selection.kind === 'tag' && !debouncedSearch && <TagIcon size={22}/>} {debouncedSearch.trim()?'Search database':displayListName(title || '')}</h1>{debouncedSearch && <p>{`Search results for “${debouncedSearch}”`}</p>}</div>{selection.kind === 'tag' && !selection.id.startsWith('quarter:') && <select aria-label="Tag group" value={bootstrap.tags.find(tag => tag.id === selection.id)?.category || tagCategory(title || '')} onChange={event => void changeTagGroup(selection.id, event.target.value)}>{tagGroups.map(group => <option key={group} value={group}>{group}</option>)}</select>}{((selection.kind === 'tag' && !selection.id.startsWith('quarter:')) || (selection.kind === 'list' && !permanentListTypes[title || ''])) && <IconButton label={selection.kind === 'list' ? 'Delete list' : 'Delete tag'} onClick={deleteSelection}><Trash2 size={17}/></IconButton>}<button className="primary-button new-card-button" aria-label="Add card" onClick={openCreate}><span className="ticket-plus"><Plus size={16}/></span><span className="ticket-label">Card</span></button></div>
+      <div className="list-header">
+        <div className="list-heading"><div className="eyebrow">{bootstrap.company.name}</div><h1>{selection.kind === 'tag' && !debouncedSearch && <TagIcon size={22}/>} {debouncedSearch.trim()?'Search database':displayListName(title || '')}</h1>{debouncedSearch && <p>{`Search results for “${debouncedSearch}”`}</p>}</div>
+        <div className="list-header-actions">
+          {selection.kind === 'tag' && !selection.id.startsWith('quarter:') && <select aria-label="Tag group" value={bootstrap.tags.find(tag => tag.id === selection.id)?.category || tagCategory(title || '')} onChange={event => void changeTagGroup(selection.id, event.target.value)}>{tagGroups.map(group => <option key={group} value={group}>{group}</option>)}</select>}
+          {((selection.kind === 'tag' && !selection.id.startsWith('quarter:')) || (selection.kind === 'list' && !permanentListTypes[title || ''])) && <IconButton label={selection.kind === 'list' ? 'Delete list' : 'Delete tag'} onClick={deleteSelection}><Trash2 size={17}/></IconButton>}
+          <div className="header-ticket-stack" aria-label="List actions">
+            <button type="button" className="primary-button new-card-button" aria-label="Add card" onClick={openCreate}><span className="ticket-plus"><Plus size={14}/></span><span className="ticket-label">Card</span></button>
+            <button type="button" className="primary-button new-card-button" aria-label="List export" title="Export the current list, filters, and search as JSON" disabled={exportingList} onClick={exportCurrentList}><span className="ticket-plus">{exportingList ? <LoaderCircle size={13} className="spin"/> : <Download size={13}/>}</span><span className="ticket-label ticket-label-long">List Export</span></button>
+            <button type="button" className={`primary-button new-card-button wisdom-button ${wisdomEnabled ? 'wisdom-on' : ''}`} aria-label={`Wisdom ${wisdomEnabled ? 'on' : 'off'}`} aria-pressed={wisdomEnabled} title="Thought cards will appear after a source is added" onClick={toggleWisdom}><span className="ticket-label ticket-label-long">Wisdom</span><span className="ticket-switch">{wisdomEnabled ? <Minus size={13}/> : <Plus size={13}/>}</span></button>
+          </div>
+        </div>
+      </div>
       <div className="flag-filters" aria-label="Flag filters">{workFlags.map(({ key, label, Icon }) => <button key={key} className={`signal-button ${key} ${activeSidebar('view', key) ? 'selected' : ''}`} aria-label={`${label}: ${bootstrap.stats[key]}`} title={label} aria-pressed={activeSidebar('view', key)} onClick={() => chooseSelection({ kind: 'view', id: key })}><Icon size={16}/>{bootstrap.stats[key] > 0 && <b className="signal-count">{bootstrap.stats[key]}</b>}</button>)}</div>
       <div className="list-toolbar"><span className="cards-count">{loading ? 'Loading…' : `${total.toLocaleString('en-GB')} ${pluralCards(total)}`}</span><div className="toolbar-controls"><ArrowDownWideNarrow size={16}/><select aria-label="Sort cards" value={sort} onChange={e => setSort(e.target.value)}><option value="contact">Last contact</option><option value="updated">Recently updated</option><option value="title">Name A–Z</option><option value="titleDesc">Name Z–A</option></select><ChevronDown size={13}/></div></div>
       <div className="cards-scroll" aria-busy={loading}>

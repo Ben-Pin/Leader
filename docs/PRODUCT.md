@@ -18,6 +18,7 @@ An independent local client-card application for Windows, usable in a browser, v
 - Card changes save automatically on exit, focus loss, or company switch. Undo discards current unsaved edits and closes the card. Ctrl+S saves. Browser-tab closing retains the browser's native unsaved-changes warning while saving is pending.
 - Card header contains Undo, the five round attention flags and Close. Star and archive buttons are removed from this header; the flag row is not duplicated in the card body. Active-flag comments remain below the header.
 - Create lists and color tags. Filter by list and tag; sort by recent contact or title.
+- The compact board-pass actions above the card list add a card, export the current list/search result as a standalone `leader-list` JSON snapshot (all pages), and toggle Wisdom. Wisdom's on/off preference is stored locally; thought cards are not shown until a content source is supplied and connected.
 - Derive YYYY-Q tag from last contact. Display it first. 2026 bright green, 2025 muted green, 2024 amber, 2023 and older red.
 - Persist data in local SQLite. Refreshing or restarting must preserve edits. Verified JSON snapshots of each connected company are made at startup and every six hours, retaining 28 per company under `data/backups/`.
 - Use pagination; no application-level cap of 100/500 cards per list.
