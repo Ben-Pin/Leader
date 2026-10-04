@@ -7,20 +7,22 @@ from pathlib import Path
 import html
 import json
 import re
+import tempfile
 from io import BytesIO
 from PIL import Image as PillowImage
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Preformatted, Image, KeepTogether
+from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle, Preformatted, Image, KeepTogether, Flowable
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus.tableofcontents import TableOfContents
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
 VERSION = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['version']
-OUTPUT = ROOT / 'public' / 'Leader-User-Manual.pdf'
+OUTPUT = ROOT / 'public' / f'Leader-User-Manual-{VERSION}.pdf'
 BLUE = colors.HexColor('#405ba5')
 INK = colors.HexColor('#27364c')
 MUTED = colors.HexColor('#64748b')
@@ -75,6 +77,43 @@ class BodyParagraph(Paragraph):
     def split(self, available_width, available_height):
         return []
 
+class ToolbarGuide(Flowable):
+    """Pair the photographed rail with numbered, readable callouts."""
+    def __init__(self, path, rows):
+        super().__init__()
+        self.width, self.height = A4[0]-96, 540
+        self.rows = rows
+        geometry = json.loads((ROOT/'docs/screenshots/toolbar.json').read_text())
+        self.buttons = geometry['buttons']
+        with PillowImage.open(path) as source:
+            if list(source.size) != geometry['sourceSize']:
+                raise ValueError('Recapture toolbar coordinates with the screenshot')
+            buffer = BytesIO()
+            source.crop(geometry['railBox']).save(buffer, format='PNG')
+        self.rail = ImageReader(buffer)
+
+    def draw(self):
+        canvas = self.canv
+        scale = self.height / 720
+        canvas.drawImage(self.rail,0,0,width=58*scale,height=self.height)
+        for number, (row, button) in enumerate(zip(self.rows,self.buttons),1):
+            center = self.height - (button['box'][1]+button['box'][3])/2*scale
+            canvas.setStrokeColor(colors.HexColor('#9baed0'))
+            canvas.line(44,center,53,center)
+            canvas.setFillColor(BLUE)
+            canvas.circle(64,center,9,stroke=0,fill=1)
+            canvas.setFillColor(colors.white)
+            canvas.setFont('Helvetica-Bold',8.5)
+            canvas.drawCentredString(64,center-3,str(number))
+            title = Paragraph('<b>'+inline(row[1])+'</b>',STYLES['ManualCell'])
+            description = Paragraph(inline(row[2]),STYLES['ManualCell'])
+            width = self.width-85
+            _, title_height = title.wrap(width,100)
+            _, description_height = description.wrap(width,100)
+            top = center + (title_height+description_height+2)/2
+            title.drawOn(canvas,85,top-title_height)
+            description.drawOn(canvas,85,top-title_height-description_height-2)
+
 def piece_catalogue():
     """Illustrated, fictional personalities; no application behavior is implied."""
     pieces = json.loads((ROOT/'docs/game-piece-personalities.json').read_text(encoding='utf-8'))
@@ -120,7 +159,8 @@ def page_chrome(canvas, doc):
     canvas.restoreState()
 
 def build():
-    doc=ManualDoc(str(OUTPUT),pagesize=A4,leftMargin=48,rightMargin=48,topMargin=62,bottomMargin=62,
+    pdf_buffer=BytesIO()
+    doc=ManualDoc(pdf_buffer,pagesize=A4,leftMargin=48,rightMargin=48,topMargin=62,bottomMargin=62,
                   title='Leader '+VERSION+' - User manual',author='Benjamin Pinkas',subject='English guide to company databases, contacts and follow-up')
     doc.addPageTemplates(PageTemplate(id='manual',frames=Frame(48,62,A4[0]-96,A4[1]-124,id='body',leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0),onPage=page_chrome))
     logo_art=document_image(ROOT/'public/leader-logo.png',max_pixels=300,transparent=True)
@@ -133,7 +173,7 @@ def build():
     story.append(Paragraph('Company databases<br/>and contact management',ParagraphStyle(name='CoverStatement',fontName='Helvetica-Bold',fontSize=25,leading=33,textColor=INK,spaceAfter=25)))
     story.append(Paragraph('A local workspace for researching companies and leads, managing contacts, and tracking follow-up - for business development, sales, partnerships, or job searching.',STYLES['ManualBody']))
     story.append(Paragraph('Keep company research, people, discussions and follow-up together. Work with separate databases and retain your records on your own computer.',STYLES['ManualBody']))
-    story.extend([Spacer(1,24),Paragraph('<b>English user manual</b><br/>Release '+VERSION+'<br/>4 October 2026<br/><br/><b>Concept and Product:</b> Benjamin Pinkas',STYLES['ManualBody']),PageBreak()])
+    story.extend([Spacer(1,24),Paragraph('<b>English user manual</b><br/>Release '+VERSION+'<br/>5 October 2026<br/><br/><b>Concept and Product:</b> Benjamin Pinkas',STYLES['ManualBody']),PageBreak()])
     story.append(Paragraph('Contents',ParagraphStyle(name='ContentsTitle',parent=STYLES['ManualHeading'])))
     toc=TableOfContents();toc.levelStyles=[STYLES['ManualTOC']];story.extend([toc,Spacer(1,18),Paragraph('Click a contents entry to go to the section. This PDF is bundled with Leader and opens from About without an online viewer.',STYLES['ManualBody']),PageBreak()])
     lines=(ROOT/'docs/USER_MANUAL.md').read_text(encoding='utf-8').splitlines()
@@ -142,7 +182,7 @@ def build():
         line=lines[i].strip();i+=1
         if not line or line.startswith('# ') or line.startswith('For Leader '):continue
         if line.startswith('## '):
-            if line[3:]=='Game piece personalities':
+            if line[3:] in ['Game piece personalities','The blue toolbar, icon by icon']:
                 story.append(PageBreak())
             story.append(Paragraph(inline(line[3:]),STYLES['ManualHeading']))
             if line[3:]=='Game piece personalities':
@@ -153,10 +193,20 @@ def build():
         picture=re.match(r'^!\[([^\]]+)\]\(([^)]+)\)$',line)
         if picture:
             caption,filename=picture.groups()
-            image=document_image(ROOT/'docs'/filename)
-            scale=min((A4[0]-96)/image.imageWidth,400/image.imageHeight)
-            image.drawWidth=image.imageWidth*scale
-            image.drawHeight=image.imageHeight*scale
+            if filename == 'screenshots/manual-toolbar.jpg':
+                while i<len(lines) and not lines[i].strip(): i+=1
+                raw=[]
+                while i<len(lines) and lines[i].strip().startswith('|'):
+                    raw.append(lines[i].strip());i+=1
+                rows=[[c.strip() for c in row.strip('|').split('|')] for row in raw if not re.match(r'^\|[\s:|-]+\|$',row)]
+                if len(rows)!=11 or rows[0][0]!='Icon / position':
+                    raise ValueError('The photographed toolbar requires all ten documented buttons')
+                image=ToolbarGuide(ROOT/'docs'/filename,rows[1:])
+            else:
+                image=document_image(ROOT/'docs'/filename)
+                scale=min((A4[0]-96)/image.imageWidth,400/image.imageHeight)
+                image.drawWidth=image.imageWidth*scale
+                image.drawHeight=image.imageHeight*scale
             image.hAlign='LEFT'
             figure=[Spacer(1,6),image,Spacer(1,5),Paragraph(inline(caption),ParagraphStyle(name='FigureCaption',parent=STYLES['ManualBody'],fontSize=9,leading=12,textColor=MUTED)),Spacer(1,8)]
             if story and isinstance(story[-1],Paragraph) and story[-1].style.name=='ManualHeading':
@@ -183,18 +233,33 @@ def build():
             story.append(table);continue
         list_match=re.match(r'^(\d+\.|-)\s+(.*)',line)
         if list_match:
-            marker,text=list_match.groups()
-            story.append(BodyParagraph(inline(text),ParagraphStyle(name='ManualList',parent=STYLES['ManualBody'],leftIndent=15,firstLineIndent=0,bulletIndent=0),bulletText=marker));continue
+            instructions=[]
+            while list_match:
+                marker,text=list_match.groups()
+                instructions.append(BodyParagraph(inline(text),ParagraphStyle(name='ManualList',parent=STYLES['ManualBody'],leftIndent=15,firstLineIndent=0,bulletIndent=0),bulletText=marker))
+                list_match=re.match(r'^(\d+\.|-)\s+(.*)',lines[i].strip()) if i<len(lines) else None
+                if list_match:i+=1
+            if story and isinstance(story[-1],BodyParagraph) and story[-1].style.keepWithNext:
+                instructions.insert(0,story.pop())
+            story.append(KeepTogether(instructions));continue
         paragraph=[line]
         while i<len(lines) and lines[i].strip() and not re.match(r'^(#|!\[|\||```|- |\d+\. )',lines[i].strip()):
             paragraph.append(lines[i].strip());i+=1
         style=STYLES['ManualBody']
         if i<len(lines):
             following=next((item.strip() for item in lines[i:] if item.strip()),'')
-            if following.startswith('|'):
+            if following.startswith('|') or re.match(r'^(\d+\.|-)\s+',following):
                 style=ParagraphStyle(name='TableIntro',parent=style,keepWithNext=True)
         story.append(BodyParagraph(inline(' '.join(paragraph)),style))
     doc.multiBuild(story)
+    # Replace a completed file rather than truncating a manual still being served.
+    with tempfile.NamedTemporaryFile(dir=OUTPUT.parent,suffix='.tmp',delete=False) as temporary:
+        temporary.write(pdf_buffer.getvalue())
+        temporary_path=Path(temporary.name)
+    try:
+        temporary_path.replace(OUTPUT)
+    finally:
+        temporary_path.unlink(missing_ok=True)
     print(OUTPUT)
 
 if __name__=='__main__':build()

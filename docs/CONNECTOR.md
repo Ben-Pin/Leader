@@ -1,6 +1,6 @@
 # Leader local MCP connector
 
-Leader 1.0.0 includes a local stdio MCP server sharing the browser's SQLite service, validation, transactions and revision checks. It exposes 17 tools in normal multi-company mode, or 10 in explicit single-database mode.
+Leader 1.0.1 includes a local stdio MCP server sharing the browser's SQLite service, validation, transactions and revision checks. It exposes 17 tools in normal multi-company mode, or 10 in explicit single-database mode.
 
 ## Start and share the correct data
 

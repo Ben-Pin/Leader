@@ -3,5 +3,8 @@
   "manual-contacts.jpg": {"sourceSize": [586, 930], "box": [0, 130, 586, 610]},
   "manual-history.jpg": {"sourceSize": [586, 930], "box": [0, 130, 586, 630]},
   "manual-export.jpg": {"sourceSize": [586, 930], "box": [71, 252, 515, 678]},
-  "manual-pieces.jpg": {"sourceSize": [586, 930], "box": [13, 46, 573, 667]}
+  "manual-pieces.jpg": {"sourceSize": [586, 930], "box": [13, 46, 573, 667]},
+  "manual-flag-comments.jpg": {"sourceSize": [1280, 720], "box": [611, 0, 1280, 334]},
+  "manual-flag-history.jpg": {"sourceSize": [1280, 720], "box": [611, 130, 1280, 586]},
+  "manual-auto-tag.jpg": {"sourceSize": [1280, 720], "box": [0, 0, 824, 720]}
 }

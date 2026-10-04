@@ -1,6 +1,6 @@
 # Acceptance checklist
 
-Current target: Leader 1.0.0. Run checks on disposable fictional databases; do not use customer records as fixtures. Results belong in [Verification](VERIFICATION.md).
+Current target: Leader 1.0.1. Run checks on disposable fictional databases; do not use customer records as fixtures. Results belong in [Verification](VERIFICATION.md).
 
 ## Installation and operation
 

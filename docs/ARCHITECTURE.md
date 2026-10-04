@@ -1,6 +1,6 @@
 # Leader architecture
 
-Current implementation: Leader 1.0.0. Browser and MCP mutations share validation, optimistic revisions and SQLite transactions.
+Current implementation: Leader 1.0.1. Browser and MCP mutations share validation, optimistic revisions and SQLite transactions.
 
 ## Components
 

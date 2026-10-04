@@ -1,6 +1,6 @@
 # Leader user manual
 
-For Leader 1.0.0. [All documentation](README.md)
+For Leader 1.0.1. [All documentation](README.md)
 
 ## A workspace for company relationships
 
@@ -37,11 +37,32 @@ A new checkout contains a fictional woodland Demo: animal-run companies buying n
 ![Figure 1. Woodland Demo: six account lists, company cards and the background map. All companies and contacts are fictional.](screenshots/manual-overview.jpg)
 
 
-The blue rail opens All cards, In work, Important, Search, New card, the expanded globe, Auto-tag, Company databases and User settings. Hover an icon to read its label. On narrow screens, **Lists and tags** opens the sidebar.
+The blue rail contains the application shortcuts shown below. Hover an icon to read its label. On narrow screens, the rail is hidden and **Lists and tags** opens the navigation sidebar.
 
 The sidebar holds the company selector, lists, grouped tags and globe. The central column shows cards and Add card, List import and List export. Selecting a card opens its details on the right; the tabs are **Card → Contacts → History**.
 
 **All cards** includes every non-archived card in the selected database. **In work** means at least one attention flag is active. **Important** shows starred cards. These are views, not extra copies of cards.
+
+**Database versus list:** the company selector chooses an independent database, such as Demo. Leads through Agents are account lists inside that database. Toolbar views never search or combine other connected databases.
+
+## The blue toolbar, icon by icon
+
+![Figure 2. The actual blue toolbar, from top to bottom. The PDF pairs each photographed button with its numbered explanation.](screenshots/manual-toolbar.jpg)
+
+| Icon / position | Action | What happens |
+| --- | --- | --- |
+| 1. White chip logo | About Leader | Shows version, product credit and a random game piece. Open the local PDF manual here. |
+| 2. List outline | All cards | Opens all non-archived cards in the connected database. Clears text search; Stage and Priority filters remain. |
+| 3. Sliders | In work | Shows cards with at least one active colored flag. This is independent of their list and Stage. |
+| 4. Star | Important | Shows starred cards. A star is independent of Priority; setting High priority does not add a star. |
+| 5. Magnifying glass | Search cards | Focuses the search box. Type to search the selected database; Ctrl+K / Cmd+K does the same. |
+| 6. Circled plus | New card | Opens the creation dialog. Starts in the selected list, or Leads when a view/tag is selected; you can change it. |
+| 7. Globe | Customer globe | Opens a larger globe and country directory for the current results, including search and Stage/Priority filters. |
+| 8. Sparkles | Auto-tag | Synchronizes contact quarters across the selected database. Uses Last contact, including future years; see the algorithm below. |
+| 9. Database cylinder, bottom | Company databases | Create/connect, import/export or disconnect/reconnect separate databases. This manages databases, not account lists. |
+| 10. Person, bottom | User settings | Edit the local profile, Leader's motto, visible permanent lists and background map, then Save settings. |
+
+**Navigation and drafts:** All cards, In work and Important save a pending card draft before switching views and clear text search. New card, Auto-tag, Company databases and User settings also save pending card edits before proceeding. If validation or a revision conflict prevents saving, resolve that error first. Search focuses the box, and the globe opens a view of the current results.
 
 ## Lists, Stage and Priority
 
@@ -66,7 +87,7 @@ All six permanent lists are protected from deletion. Hide selected lists under *
 
 ## Create, edit, save and undo
 
-![Figure 2. Acorn & Co.: list, Stage, Priority and contact dates belong to the company card.](screenshots/manual-card.jpg)
+![Figure 3. Acorn & Co.: list, Stage, Priority and contact dates belong to the company card.](screenshots/manual-card.jpg)
 
 
 1. Select a company database and click **Add card** or **New card**.
@@ -83,7 +104,7 @@ If another window or MCP operation changes the same card, Leader rejects the sta
 
 ## Contacts and discussion history
 
-![Figure 3. Each contact has a name, position, email and status. Willow’s unknown position stays blank.](screenshots/manual-contacts.jpg)
+![Figure 4. Each contact has a name, position, email and status. Willow's unknown position stays blank.](screenshots/manual-contacts.jpg)
 
 
 Open **Contacts** and add one row per contact: **Name, Position, Email, Status**. Up to 100 contacts are supported. Use a valid email when known; unknown fields may stay blank. **Position/Role stays empty unless the role is known**. Empty rows are omitted on save.
@@ -97,7 +118,7 @@ Open **Contacts** and add one row per contact: **Name, Position, Email, Status**
 | useful | Helpful contact |
 | decisions | Decision-making contact |
 
-![Figure 4. History keeps the conversation date and participating contacts beside each note.](screenshots/manual-history.jpg)
+![Figure 5. History keeps the conversation date and participating contacts beside each note.](screenshots/manual-history.jpg)
 
 In **History**, select at least one contact, write what was discussed and click **Add note**. This saves pending card edits first and then immediately records the note. Notes keep participant snapshots, so later removal or editing of a contact does not erase attribution. Older imported history can appear as **Older entry without contacts**. System flag/list events do not require participants.
 
@@ -115,9 +136,19 @@ The round controls in the card header are independent:
 | Blue / Tux | SW issue | Software problem |
 | Gray / wrench | HW issue | Hardware problem |
 
-Click to turn a flag on or off. In the UI, either action sets **Last contact** to today's local date. Active flags expose a single-line comment of up to 300 characters. Save records each transition with its date and comment, including a later disable event. Clearing a flag hides and preserves its comment. Undo discards unsaved transitions. A comment edit without a toggle does not create a new on/off event.
+![Figure 6. Two active flags expose two separate comment fields above the company name. Their colored dots match the buttons.](screenshots/manual-flag-comments.jpg)
 
-The matching central-column controls select a flag view; their badges count matching accounts across the company database. Several flags can be active on one card.
+**Open an issue:** open the company card, turn on the relevant colored button in its header, then enter a short comment in the matching colored row below. Each active flag has its own single-line field, limited to 300 characters. Describe the specific problem or next action, for example: **Order form rejects the delivery date; send a corrected confirmation.** Leave the card or press Ctrl+S / Cmd+S to save.
+
+**Close an issue:** while the flag is still on, replace its comment with the resolution, for example: **Corrected confirmation accepted; delivery date now works.** Then turn that flag off and save. The field disappears when the flag is off, so enter the resolution before switching it off. The last comment is retained and appears again if you re-enable the flag.
+
+![Figure 7. History keeps separate SW issue enabled and SW issue disabled events, each with its own date, time and saved comment.](screenshots/manual-flag-history.jpg)
+
+Every saved on/off transition adds a **Flag change** entry in History with the flag name, enabled/disabled state, timestamp and comment. Disabling does not erase the earlier enabled entry. System flag events need no contact participant. Editing a comment alone updates the current flag text without creating another on/off event; use a participant-linked History note for a fuller discussion.
+
+In the browser UI, **both turning a flag on and turning it off set Last contact to today's local date** and update the draft quarter accordingly. Typing in the comment field alone does not change Last contact. These edits follow normal card autosave; Undo discards unsaved toggles/comments and does not undo previously saved events.
+
+The matching central-column colored buttons are **filters**. Click one to view cards with that active flag; click it again to return to All cards. Their badges count saved matching accounts across the selected database. Filtering does not toggle a card's flag, write a comment or change Last contact. Clear text search to use the selected flag view; a nonempty global search overrides sidebar/flag scope. Several flags can be active on one card, but **In work** counts that card once. A card leaves In work when all its flags are off; it stays in its account list.
 
 ## Search, tags and the globe
 
@@ -125,13 +156,40 @@ The matching central-column controls select a flag view; their badges count matc
 
 Custom tags are grouped into **Countries, Time, Product, Stage, Application, Other**. Choose Group when creating a tag. To move an existing tag, select it in the sidebar and change **Tag group** above the result list. **Delete tag** removes the tag and its assignments without deleting cards.
 
-Contact-quarter tags are automatic, appear first, and use `YYYY-Q`, for example **2027-1**. Set Last contact and click **Auto-tag quarters from last contact dates** to synchronize dated cards across the selected database. Future quarters are derived automatically; you do not need to create them. A card with no exact date is not assigned an invented day. Removing its quarter badge clears the draft contact date and fallback quarter.
+Contact-quarter tags are automatic, appear first, and use `YYYY-Q`, for example **2027-1**. They are shown under **Tags → Time**, separately from ordinary editable tags. Removing a card's quarter badge clears its draft contact date and fallback quarter. The Auto-tag section explains how quarters are calculated and synchronized.
 
 The globe follows the current result, including search and Stage/Priority filters, across every result page. Click a country marker to open its matching directory. Country dots are spread within the country for readability; they are not verified office coordinates. Missing/unrecognized countries are not plotted. Drag to rotate; card/country selection rotates smoothly. Reduced-motion browser preferences reduce animation.
 
+## Auto-tag: synchronize contact quarters
+
+![Figure 8. Auto-tag reports how many dated cards it checked and how many stored quarters changed. Open Tags > Time to browse the derived quarter groups.](screenshots/manual-auto-tag.jpg)
+
+Use the **sparkles button** on the blue toolbar after correcting or importing Last contact dates. It is a manual command, not a scheduled job. Normal card rendering already derives the visible quarter from Last contact, so a badge can be correct before a run; Auto-tag makes the stored fallback quarter agree with that date.
+
+The algorithm is:
+
+1. **Select one database.** Auto-tag uses the database in Connected company. It saves any pending card edits first; a save error stops the operation.
+2. **Find dated cards.** The current server examines every card with an exact Last contact date in that database, across all lists, including archived cards. The current list, search and Stage/Priority filters do not limit the operation.
+3. **Calculate the quarter.** Keep the contact date's year and divide its month into the four ranges below: quarter = round up(month / 3). Form the label `YYYY-Q`.
+4. **Compare and synchronize.** If the stored contact quarter differs, replace it and advance that card's revision/update timestamp. Already matching cards stay unchanged. Cards without an exact date are skipped; an existing quarter-only fallback is preserved.
+5. **Refresh and report.** Reload the selected card, result list and sidebar groups. The notification reports dated cards examined and stored quarters updated. Quarter groups for non-archived cards appear automatically under Time.
+
+| Contact month | Quarter number | Example label |
+| --- | --- | --- |
+| January through March | 1 | 2027-1 |
+| April through June | 2 | 2027-2 |
+| July through September | 3 | 2027-3 |
+| October through December | 4 | 2027-4 |
+
+**There is no fixed list of years to maintain.** A contact dated 8 February 2027 produces **2027-1** automatically; 1 April 2027 produces **2027-2**. Future years use the same calculation. These quarter groups are derived from card data, rather than created as ordinary custom tags.
+
+**Missing or conflicting dates:** 9 April 2026 plus an old stored quarter of 2025-4 becomes **2026-2**. An undated card with only an imported quarter of 2023-2 keeps **2023-2** and gains no invented day. An undated card with no fallback remains untagged. Archived cards are synchronized but are not shown in ordinary card results or Time group counts.
+
+**Read the result:** the pictured run checked **12 dated cards** and updated **11** stored quarters. Running it again without changing any dates reported **0 updated**. Auto-tag does not mark a new contact, change Last contact, move accounts between lists, edit custom tags or create a History event. Undo on a card does not reverse this completed database operation; correct the date and rerun if necessary.
+
 ## List import and export
 
-![Figure 5. Choose whether a list export includes About customer and conversation history.](screenshots/manual-export.jpg)
+![Figure 9. Choose whether a list export includes About customer and conversation history.](screenshots/manual-export.jpg)
 
 
 The central-column **down arrow** is **List import**; the **up arrow** is **List export**. List transfers use Leader list JSON, not CSV, PST or a full company snapshot.
@@ -161,11 +219,31 @@ Open **User settings** at the bottom of the blue rail. Change the display name, 
 
 The background appears only while no card is open. Choose the built-in map, disable it, or load a square **PNG/JPEG/WebP** up to **20 MB** and **8192 × 8192** pixels. Its 1:1 ratio is preserved; it displays at 70% opacity (30% transparent).
 
-![Figure 6. The game-piece gallery opens in Mascot; preview a piece, then double-click or use the selection button.](screenshots/manual-pieces.jpg)
+![Figure 10. The game-piece gallery opens in Mascot; preview a piece, then double-click or use the selection button.](screenshots/manual-pieces.jpg)
 
 Click the selected figurine beside Leader to open the gallery of 60 finished pieces. It starts in **Mascot**; use categories/search to find others. Click to preview; double-click or **Use this piece** to select. Holding a figure for about 350 ms enlarges it in place with a slight slow wobble; release returns it to position.
 
 Appearance preferences and the selected piece are stored in this browser profile; custom maps use browser storage. Company JSON backups do not contain these settings.
+
+## Software stack
+
+Leader is a local browser application: the browser renders the interface, a Node.js process serves it on loopback, and SQLite stores each company database on disk. It does not require a hosted database or cloud service for normal operation.
+
+| Technology | Role in Leader |
+| --- | --- |
+| React 19 and TypeScript 5 | Component-based interface and typed card, contact and preference models |
+| Vite 8 | Development tooling and production browser build |
+| CSS, SVG and transparent PNG assets | Compact panels, glass/relief effects, transitions, the map and game pieces |
+| Lucide React | Consistent interface icons; the supplied Leader logo is a separate image |
+| D3 Geo, TopoJSON Client and World Atlas | Globe projection and country geometry |
+| Node.js 24+ and Express 5 | Local HTTP server and JSON API at 127.0.0.1:4177 |
+| SQLite via Node's built-in node:sqlite | Persistent company records, indexed queries, transactions and revision checks |
+| Zod and Model Context Protocol SDK | MCP input schemas and the optional local stdio assistant connector |
+| localStorage and IndexedDB | Browser preferences, selected piece and custom-map storage |
+| pnpm and Node's test runner | Dependency management and automated verification |
+| Python, ReportLab and Pillow | Authoring the bundled illustrated PDF; Python is not needed to run Leader |
+
+Browser and MCP edits use the same data service. Portable company/list JSON files transfer records; they are not the live database. Exact dependency versions are pinned in the repository lockfile. The technology list describes this release, not a requirement to install every framework separately: pnpm installs the application dependencies.
 
 ## Game piece personalities
 

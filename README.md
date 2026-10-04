@@ -8,7 +8,7 @@ Use it for business development and sales, partnerships, supplier research or a 
 
 Leader runs locally with an English browser interface, SQLite storage and an optional MCP connector. Explore your company relationships on a globe and keep separate databases for different projects.
 
-**[User manual](docs/USER_MANUAL.md)** · **[PDF manual](public/Leader-User-Manual.pdf)** · **[Documentation index](docs/README.md)**
+**[User manual](docs/USER_MANUAL.md)** · **[PDF manual](public/Leader-User-Manual-1.0.1.pdf)** · **[Documentation index](docs/README.md)**
 
 ## What it does
 
@@ -61,7 +61,7 @@ The development UI uses the address printed by Vite and proxies the local API. P
 
 ## Current scope
 
-Leader 1.0.0 is a single-user local web application. The server binds to loopback; it is not a public website or a cloud service. There is no live cloud sync, built-in PST/mail/TickTick importer, email sending, reminder scheduler, or attachment manager. Wisdom has a setting but no connected thought-card source. The local MCP implementation is included; installation into a host is a separate step.
+Leader 1.0.1 is a single-user local web application. The server binds to loopback; it is not a public website or a cloud service. There is no live cloud sync, built-in PST/mail/TickTick importer, email sending, reminder scheduler, or attachment manager. Wisdom has a setting but no connected thought-card source. The local MCP implementation is included; installation into a host is a separate step.
 
 See [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [MCP connector](docs/CONNECTOR.md) and [Verification](docs/VERIFICATION.md).
 

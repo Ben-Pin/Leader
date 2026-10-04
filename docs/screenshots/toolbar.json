@@ -1,0 +1,16 @@
+{
+  "sourceSize": [1280, 720],
+  "railBox": [0, 0, 58, 720],
+  "buttons": [
+    {"label": "About Leader", "box": [6, 19, 51, 63]},
+    {"label": "All cards", "box": [9, 89, 48, 127]},
+    {"label": "In work — active flags", "box": [9, 143, 48, 181]},
+    {"label": "Important", "box": [9, 197, 48, 235]},
+    {"label": "Search cards", "box": [9, 251, 48, 289]},
+    {"label": "New card", "box": [9, 305, 48, 343]},
+    {"label": "Customer globe", "box": [9, 359, 48, 397]},
+    {"label": "Auto-tag quarters from last contact dates", "box": [9, 413, 48, 451]},
+    {"label": "Company databases", "box": [9, 609, 48, 647]},
+    {"label": "User settings", "box": [9, 665, 48, 703]}
+  ]
+}

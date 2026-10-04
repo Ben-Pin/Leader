@@ -2,7 +2,7 @@
 
 All responses JSON. Errors: `{error: string, code?: string}` with appropriate HTTP status. API prefix `/api`.
 
-Leader 1.0.0. `Card`: `{id,listId,title,description,company,country,secondaryCountry,contacts,contactName,email,lastContact,contactQuarter,dueDate,status,priority,completed,starred,archived,importedPending,accountType,distributorIds,distributors,clientCount,flags,version,createdAt,updatedAt,tags,checklist,activity}`.
+Leader 1.0.1. `Card`: `{id,listId,title,description,company,country,secondaryCountry,contacts,contactName,email,lastContact,contactQuarter,dueDate,status,priority,completed,starred,archived,importedPending,accountType,distributorIds,distributors,clientCount,flags,version,createdAt,updatedAt,tags,checklist,activity}`.
 
 - `status`: `contact | evaluation | rampUp | massProduction | legacy` (project stage, independent of list/category). `massProduction` is the stable internal key displayed as **Production**.
 - `importedPending`: boolean marker for a list-imported card, cleared by its first saved edit.
@@ -73,4 +73,4 @@ List export is assembled by the browser from every matching page; there is no de
 
 HTTP mutations require exact same-origin `Origin`, bootstrap `X-Leader-Token` and JSON content type. Scoped writes additionally require `X-Leader-Company`. Loopback binding and Host checks do not make this a public multi-user service.
 
-The built UI serves `/Leader-User-Manual.pdf` as a local static asset. About opens it directly without a third-party viewer.
+The built UI serves `/Leader-User-Manual-<app-version>.pdf` as a local static asset. About uses the package version to open the current edition directly without a third-party viewer.

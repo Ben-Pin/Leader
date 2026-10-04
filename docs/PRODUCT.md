@@ -1,6 +1,6 @@
 # Leader product
 
-Leader 1.0.0 is a single-user local workspace for company databases, contacts and relationships, including BD, sales, partnerships and job searching. The English browser UI and optional MCP connector share the same validated SQLite service. This document describes implemented behavior; [the user manual](USER_MANUAL.md) explains operation.
+Leader 1.0.1 is a single-user local workspace for company databases, contacts and relationships, including BD, sales, partnerships and job searching. The English browser UI and optional MCP connector share the same validated SQLite service. This document describes implemented behavior; [the user manual](USER_MANUAL.md) explains operation.
 
 ## Account organization
 
