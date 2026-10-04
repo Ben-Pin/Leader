@@ -402,7 +402,7 @@ export default function App() {
     let saveHandle: SaveHandle | null = null;
     // Open the native picker before the first await so the browser keeps the user's click activation.
     if (savePicker) {
-      try { saveHandle = await savePicker.call(window, { suggestedName: fileName, types: [{ description: 'Leader JSON', accept: { 'application/json': ['.json'] } }] }); }
+      try { saveHandle = await savePicker.call(window, { suggestedName: fileName, startIn: 'documents', types: [{ description: 'Leader JSON', accept: { 'application/json': ['.json'] } }] }); }
       catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         setToast(errorText(error));
@@ -659,7 +659,7 @@ function ListExportModal({count,busy,onClose,onExport}:{count:number;busy:boolea
     <label className="list-transfer-check"><input type="checkbox" checked={includeDescription} onChange={event=>setIncludeDescription(event.target.checked)} disabled={busy}/> Include “About customer”</label>
     <label className="list-transfer-check"><input type="checkbox" checked={includeHistory} onChange={event=>setIncludeHistory(event.target.checked)} disabled={busy}/> Include conversation history</label>
     <p className="form-hint">With both unchecked, the file contains company and contact details without these internal notes.</p>
-    <p className="form-hint">{hasSavePicker ? 'Choose the save location in the browser dialog.' : 'This browser saves to its configured Downloads location. Open Leader in Chrome or Edge to choose a folder for each export.'}</p>
+    <p className="form-hint">{hasSavePicker ? 'The save dialog opens in Documents. You can choose another folder.' : 'This browser uses its download settings. Open Leader in Chrome or Edge to save in Documents or choose another folder.'}</p>
     <div className="modal-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="primary-button" disabled={busy}>{busy?<LoaderCircle size={15} className="spin"/>:<Download size={15}/>}Export JSON</button></div>
   </form></Modal>;
 }
