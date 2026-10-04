@@ -725,11 +725,14 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       // Only a pristine database receives demo records; existing user data is preserved.
       if (sql('SELECT COUNT(*) AS n FROM lists').get().n === 0 && sql('SELECT COUNT(*) AS n FROM cards').get().n === 0) {
         for (const list of DEMO_LISTS) sql('INSERT INTO lists(id,name,color) VALUES(?,?,?)').run(list.id, list.name, list.color);
-        for (const tag of DEMO_TAGS) sql('INSERT INTO tags(id,name,color) VALUES(?,?,?)').run(tag.id, tag.name, tag.color);
+        for (const tag of DEMO_TAGS) sql('INSERT INTO tags(id,name,color,category) VALUES(?,?,?,?)').run(tag.id, tag.name, tag.color, tag.category ?? null);
         for (const record of DEMO_CARDS) {
           const { activity = [], ...input } = record;
           const card = service.createCard(input);
-          for (const event of activity) sql('INSERT INTO activity(id,card_id,text,created_at) VALUES(?,?,?,?)').run(randomUUID(), card.id, event.text, event.createdAt);
+          for (const event of activity) {
+            const participants = card.contacts.filter(contact => event.contactIds?.includes(contact.id));
+            sql('INSERT INTO activity(id,card_id,text,created_at,contacts) VALUES(?,?,?,?,?)').run(randomUUID(), card.id, event.text, event.createdAt, JSON.stringify(participants));
+          }
         }
         sql("INSERT OR REPLACE INTO metadata(key,value) VALUES('demo','true')").run();
       }

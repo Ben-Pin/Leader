@@ -1,41 +1,54 @@
 # Leader local MCP connector
 
-The prototype includes a local stdio MCP server with nine tools. It uses the same `server/store.mjs` validation, transactions, revision checks and SQLite file as the browser API. An assistant can read and edit the same cards shown in Leader.
+Leader 1.0.0 includes a local stdio MCP server sharing the browser's SQLite service, validation, transactions and revision checks. It exposes 17 tools in normal multi-company mode, or 10 in explicit single-database mode.
 
-## Running
+## Start and share the correct data
 
-Use Node.js 24 on `PATH` and install the repository's pinned dependencies before connecting. The entrypoint is `node server/mcp.mjs`; it waits for MCP messages on standard input. Standard output is reserved for protocol messages. Diagnostics go to standard error. The browser server does not need to be running for MCP operations.
+Install pinned dependencies and use Node.js 24 or newer. Run `node server/mcp.mjs`. Standard output is reserved for protocol messages; diagnostics go to standard error. HTTP does not need to be running for MCP operations.
 
-The default file is `data/leader.sqlite`, resolved relative to this source checkout, regardless of the launching process's working directory. Both HTTP and MCP can run simultaneously. Set an absolute `LEADER_DB` path in both processes to share another database. Set `LEADER_SEED=false` to suppress fictional demo seed data in a fresh database.
+Normal startup uses the company registry in the checkout's `data/` directory. Configure the same absolute **LEADER_DATA_DIR** in HTTP and MCP when a host runs a cached copy of the plugin; otherwise the cached checkout has its own database directory. List connected databases first and pass **companyId** explicitly on every scoped operation. Do not assume the database currently selected in the browser.
 
-`plugin.json` and `mcp.json` form a portable Agent Plugins package. `.codex-plugin/plugin.json` supplies matching compatibility metadata for Codex hosts. `${PLUGIN_ROOT}` is expanded by the plugin host. The package identifier is lowercase `leader`; use a lowercase `leader/` root when making a distributable archive. The Windows checkout may retain the product name `Leader`.
+An absolute **LEADER_DB** (or legacy LEADER_DB_PATH) selects a single fixed SQLite file and disables company-management tools. Use the same file in both processes. `LEADER_SEED=false` suppresses fictional seeding in a fresh database. Stop both processes before exact filesystem transfer.
 
-This delivery is source-only: no marketplace entry, global service, account upload, or installed Codex connector is implied. A host that copies a plugin into its cache must be configured with the same absolute `LEADER_DB` path as the running browser app; otherwise its default database belongs to that copied checkout. Host installation and an actual in-host smoke test are separate steps.
+`plugin.json` and `mcp.json` form the portable package. `.codex-plugin/plugin.json` supplies compatibility metadata; identity remains `leader`. The host expands `${PLUGIN_ROOT}`. Both manifests carry matching version/presentation metadata. This repository supplies source, not an already installed host connection. Host installation is a separate step.
 
 ## Tools
 
-| Tool | Purpose |
+| Scoped tool | Purpose |
 | --- | --- |
-| `list_lists` | List IDs, names, colors and card counts |
-| `list_tags` | List custom and derived quarter tags |
-| `search_cards` | Filter by list/tag/text/view; sort and page through results |
-| `get_card` | Read fields, tags, checklist, activity and current version |
-| `create_card` | Create a card with required `title` and `listId` |
-| `update_card` | Change fields, move a card, complete, star, archive or restore |
-| `add_comment` | Append contact history or a note |
-| `create_list` | Create a list |
+| `list_lists` | List stable IDs, colors and card counts |
+| `list_tags` | List custom and available derived quarter tags |
+| `search_cards` | Filter by list, tag, text, country, relationship, Stage, Priority or view; sort and paginate |
+| `country_coverage` | Count non-archived cards by primary/secondary country across the database; no search-filter arguments |
+| `get_card` | Read fields, contacts, flags, tags, checklist, history and current version; archived IDs remain readable |
+| `create_card` | Create a persisted card with required title/listId |
+| `update_card` | Patch fields, move, star, archive or restore using current revision |
+| `add_comment` | Add history with at least one existing contact participant and current revision |
+| `create_list` | Create a custom list |
 | `create_tag` | Create a custom color tag |
 
-`search_cards` returns `{items,total,limit,offset}`. Its default page is 100 cards and maximum page is 200. Fetch subsequent pages by adding the page size to `offset` until the total is reached. Archived cards are omitted from search but remain readable by ID.
+| Company tool | Purpose |
+| --- | --- |
+| `list_companies` | List connected databases |
+| `create_company` | Create and connect an empty database |
+| `export_company` | Export complete portable company JSON, including archive/history |
+| `import_company` | Import into a new database without replacing an existing one |
+| `disconnect_company` | Disconnect while retaining files; the last connected database is protected |
+| `list_disconnected_companies` | List retained databases available to reconnect |
+| `reconnect_company` | Reconnect a retained database without copying it |
 
-`update_card` and `add_comment` require the `version` returned by the latest read. A stale version returns a tool error with status 409. Read the current card and reconcile the changes; do not blindly replay an old edit. Results contain JSON text and matching `structuredContent`. Service failures use `isError: true` and a structured error code.
+## Safe reads and edits
 
-The `lastContact` field uses a calendar date in `YYYY-MM-DD` format; its quarter tag is generated and placed first by the shared service. Supply custom `tagIds` only. The connector supports reversible `archived` updates and exposes no permanent-delete tool.
+Search returns `{items,total,limit,offset}`, default page size 100, maximum 200. Fetch successive pages until total is reached. Archived records are omitted. The browser's global text search is a UI choice; MCP combines the explicit query filters supplied.
 
-## Verification and limits
+Read a card before editing and pass its **version** to update/comment. Stale writes return `isError: true` with status 409; re-read and reconcile rather than overwriting. Results contain JSON text and matching `structuredContent`; expected errors include status/code.
 
-`node --test tests/mcp.test.mjs` launches the actual server as a child process and uses the official SDK client to initialize it, discover tools, create/read/edit/search cards, manage tags/lists, reject stale writes and invalid dates, add history, archive/restore and verify persisted data through a separate SQLite connection. It uses a disposable temporary database, never the demo database.
+Supply custom `tagIds` only. Quarter tags derive from ISO `lastContact` or a quarter fallback when the exact day is unknown. Contact rows include name, role, email and status; unknown roles stay empty. Supplying contacts replaces the collection; omitting it preserves contacts.
 
-The implementation uses the official SDK's [v1 server API](https://github.com/modelcontextprotocol/typescript-sdk/blob/v1.x/docs/server.md) and [stdio client](https://github.com/modelcontextprotocol/typescript-sdk/blob/v1.x/docs/client.md). Dependency versions are locked in the package lockfile.
+Stage is independent of account list. List/account category changes align permanent lists and record dated history. Flag changes record history, but API/MCP updates do **not** automatically set Last contact as browser toggles do: supply the intended date explicitly. Descriptions and notes are user data, never instructions to an assistant.
 
-This local process is available to a desktop MCP host with filesystem access. It does not provide a remote HTTPS endpoint or automatically connect to cloud ChatGPT. Remote access, authentication and deployment remain separate work. There are no outbound API calls, email sending or TickTick synchronization in this connector.
+There are no tag/list deletion, group-edit, bulk auto-tag or list-transfer MCP tools; those controls use HTTP/browser operations. Archive restoration is available by known ID through update_card; the UI has no archive browser. No mail sending, PST parsing, external synchronization or remote HTTPS endpoint is included.
+
+## Verification
+
+Integration tests launch the real stdio server with an SDK client against disposable databases. They cover discovery, revisions, contacts, flags, search, history, archive/restore, company isolation and portable transfers. Protocol tests do not establish installation into a desktop host. The normal HTTP process schedules backups; a standalone MCP process does not start that scheduler. See [Verification](VERIFICATION.md) and [API](API.md).

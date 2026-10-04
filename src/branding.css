@@ -1,0 +1,35 @@
+.icon-rail .brand-mark {
+  width: 44px;
+  height: 44px;
+  margin-inline: 0;
+  align-self: center;
+}
+.icon-rail .brand-mark .leader-logo { width: 36px; height: 36px; margin: 0; }
+.about-logo, .startup-logo {
+  display: grid;
+  place-items: center;
+  padding: 9px;
+  flex-shrink: 0;
+  color: white;
+  background: linear-gradient(140deg,#6078bb,#405ba5);
+  border: 1px solid #93a7d4;
+  box-shadow: inset 0 1px 0 #ffffff55, 0 3px 8px #273f7026;
+}
+.modal.about-modal { width: min(600px, calc(100vw - 40px)); }
+.about-summary { display: grid; grid-template-columns: minmax(0,1fr) 225px; gap: 12px; align-items: center; }
+.about-details { min-width: 0; }
+.about-modal .about-brand { margin-bottom: 24px; }
+.about-modal .about-version { grid-template-columns: 104px minmax(0,1fr); gap: 12px; }
+.about-token { width: 225px; height: 246px; pointer-events: none; }
+.about-token .game-token-art.large { width: 225px; height: 246px; }
+.about-token .game-token-figure > img { width: 100%; height: 100%; }
+@media(max-width:520px) {
+  .modal.about-modal { padding: 20px; }
+  .about-summary { grid-template-columns: minmax(0,1fr) 169.5px; gap: 6px; }
+  .about-modal .about-brand { gap: 8px; flex-wrap: wrap; }
+  .about-modal .about-logo { width: 42px; height: 42px; padding: 6px; }
+  .about-modal .about-brand strong { font-size: 21px; }
+  .about-modal .about-version { grid-template-columns: 1fr; gap: 5px; }
+  .about-modal .about-version dd { margin-bottom: 7px; }
+  .about-token, .about-token .game-token-art.large { width: 169.5px; height: 210px; }
+}

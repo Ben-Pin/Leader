@@ -15,7 +15,7 @@ try {
   const missingDescription = cards.filter(card => !card.description?.trim());
   const noEmail = cards.filter(card => !card.contacts?.some(contact => contact.email?.trim()));
   const misplaced = cards.filter(card => {
-    const expected = { client: 'Customers', unspecified: 'Prospects', partner: 'Partners', distributor: 'Distributors' }[card.accountType];
+    const expected = { lead: 'Leads', unspecified: 'Prospects', opportunity: 'Opportunities', client: 'Customers', partner: 'Partners', distributor: 'Agents' }[card.accountType];
     return expected && listNames.get(card.listId) !== expected;
   });
   console.log(JSON.stringify({ company: bundle.company.name, cards: cards.length, lists: counts,

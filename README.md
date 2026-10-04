@@ -1,43 +1,70 @@
 # Leader
 
-Local customer and partner management for Windows. The browser interface and MCP connector use the same local SQLite databases. The subtitle is **of the lead-free world**.
+**of the lead-free world**
 
-## Start on this computer
+Leader turns a database of companies into a practical workspace for relationships and follow-up. Keep the people you know, what you have discussed and what to do next beside each company, so useful context is easy to find when you need it.
 
-Install Node.js 24 or newer and pnpm. In the cloned repository:
+Use it for business development and sales, partnerships, supplier research or a personal job search. For BD and sales, it helps you track qualification, evaluation and production conversations. For a job search, it keeps employers, recruiters, discussions and next steps together. The interface uses commercial labels, but the underlying company cards and contacts support many kinds of company research and relationship management.
 
-```powershell
-pnpm install
+Leader runs locally with an English browser interface, SQLite storage and an optional MCP connector. Explore your company relationships on a globe and keep separate databases for different projects.
+
+**[User manual](docs/USER_MANUAL.md)** · **[PDF manual](public/Leader-User-Manual.pdf)** · **[Documentation index](docs/README.md)**
+
+## What it does
+
+- Six permanent lists: **Leads → Prospects → Opportunities → Customers → Partners → Agents**, with spectrum colors and optional sidebar visibility.
+- Five independent project stages: **Contact → Evaluation → Ramp Up → Production → Legacy**. Priority supports sorting, filters and visible row markers.
+- Company cards with multiple contacts, contact statuses, factual summaries, checklists and participant-linked history.
+- Autosave on leaving a card or losing browser focus. **Undo** discards the current unsaved card draft.
+- Five attention flags with dated on/off history and comments; toggling them in the UI updates Last contact.
+- Search across a company database, filtered geography and automatic contact-quarter tags, including future years.
+- Agent/partner relationships, portable list transfers, complete company exports and automatic local backups.
+- Personal settings, a square background map and 60 finished collectible game pieces.
+
+Each connected company has a separate database. A fresh checkout supplies fictional Demo data; your customer cards are transferred separately.
+
+![Leader interface with fictional demonstration cards](docs/screenshots/manual-overview.jpg)
+
+## Quick start
+
+Install **Node.js 24 or newer** and the **pnpm version declared in package.json**. From a terminal:
+
+```sh
+git clone https://github.com/Ben-Pin/Leader.git
+cd Leader
+pnpm install --frozen-lockfile
 pnpm build
 pnpm start
 ```
 
-Open **http://127.0.0.1:4177/** in a browser on that computer. Keep the terminal running while using Leader. On Windows, after the first build you can double-click `start-leader.cmd` to start the server in the background and open the browser automatically. If port 4177 is in use, stop the other Leader server before starting this one.
+Open **[http://127.0.0.1:4177/](http://127.0.0.1:4177/)** on the same computer and keep the terminal running. Stop the foreground server with Ctrl+C.
 
-## Move Leader to another computer
+On Windows, after installation and the first build, `start-leader.cmd` starts Leader in the background and opens the browser. Other systems can use the commands above. Windows browser operation is verified; Linux, including ARM64, and macOS need a compatible Node.js runtime and have not been verified on physical machines for this release.
 
-1. Clone the private [Leader repository](https://github.com/Ben-Pin/Leader), then run `pnpm install` and `pnpm build`.
-2. On the old computer, open **Company databases**, select Clab and click **Export Clab**. Copy the downloaded Leader JSON file to the new computer. Alternatively, copy a file from `data/backups/clab/`.
-3. On the new computer, run `pnpm start` or `start-leader.cmd`, open **http://127.0.0.1:4177/**, then open **Company databases → Connect from Leader JSON file**. Select the JSON file and confirm the company name. Repeat for any other company database you want to move.
+## Your data and another computer
 
-The import creates a separate database. Do not import the same snapshot over an existing company; switch to the newly imported company after importing. For an exact transfer of every database and its connections, stop Leader on both computers and copy the entire `data/` directory to the new checkout before starting it. Do not copy a live SQLite file while Leader is running.
+GitHub stores source, documentation and artwork. Customer databases, exports, mail archives and private import reports stay outside version control.
 
-GitHub contains the code and Markdown, **not** the cards or mail archive. Treat exports and `data/backups/` as private customer data.
+To move one database, use **Company databases → Export**, start Leader on the new computer, then choose **Connect from Leader JSON file → Import and connect**. This creates a new database rather than overwriting an existing one. See [transfer and recovery](docs/USER_MANUAL.md#move-to-another-computer-and-recover-data) for full steps and the separate browser-preference limitations.
 
-## Backups and recovery
+Standard server startup creates JSON backups under `data/backups/<company-id>/`, repeats every six hours while running, and retains the newest 28 per connected company. Copy important backups to separate storage.
 
-When the standard server starts, it writes a verified JSON snapshot of each connected company to `data/backups/<company-id>/`. It repeats every six hours while running and keeps the newest 28 snapshots per company. The files are ignored by Git. To recover, use **Company databases → Connect from Leader JSON file** and choose a snapshot. Copy backups to another storage location periodically; a disk failure can destroy both the database and backups kept on the same disk.
+## Development
 
-Run `node scripts/audit-data.mjs clab` for a read-only summary of missing or unverified card fields. It does not change customer data.
+```sh
+pnpm dev
+pnpm build
+node --test --test-concurrency=1 tests/*.test.mjs
+```
 
-## Editing
+The development UI uses the address printed by Vite and proxies the local API. Production runs at port 4177. [Contributing](CONTRIBUTING.md) describes safe test databases and source-only commits.
 
-Card changes save automatically when the card loses focus, closes, or you switch to another card or company. **Undo** discards the current unsaved changes and closes the card. A browser warning appears when you try to close a tab with an unsaved or still-saving change. The footer shows the save state and any error. Ctrl+S also saves.
+## Current scope
 
-The four permanent lists are **Customers**, **Prospects**, **Partners**, and **Distributors**. Changing an account type moves the card to its corresponding list. Tags can be assigned to a group when created and moved to another group later. The globe follows the current list, filters and search.
+Leader 1.0.0 is a single-user local web application. The server binds to loopback; it is not a public website or a cloud service. There is no live cloud sync, built-in PST/mail/TickTick importer, email sending, reminder scheduler, or attachment manager. Wisdom has a setting but no connected thought-card source. The local MCP implementation is included; installation into a host is a separate step.
 
-## Notes
+See [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [MCP connector](docs/CONNECTOR.md) and [Verification](docs/VERIFICATION.md).
 
-The app binds only to the local computer. The MCP connector is implemented but not installed into a user MCP host. The Demo database is fictional. Company JSON export/import is the supported portable format; live cloud sync and mail import are not implemented.
+## Credits
 
-Architecture and APIs: [Architecture](docs/ARCHITECTURE.md), [Product](docs/PRODUCT.md), [API](docs/API.md), [Acceptance](docs/ACCEPTANCE.md), [Connector](docs/CONNECTOR.md).
+Concept and Product: **Benjamin Pinkas**. Development with OpenAI Codex.

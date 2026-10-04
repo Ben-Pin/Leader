@@ -85,11 +85,16 @@ test('fictional demo is complete, quarter-first and idempotent on restart', t =>
   assert.equal(bootstrap.stats.total, 12);
   assert.equal(bootstrap.lists.length, 6);
   const cards = store.listCards({ sort: 'contact' }).items;
-  assert.ok(cards.every(card => card.description.startsWith('Демо-компания')));
+  assert.ok(cards.every(card => card.description.startsWith('Fictional demo company.')));
   assert.ok(cards.every(card => card.email.endsWith('.example')));
   assert.ok(cards.every(card => card.country && card.tags[0].id.startsWith('quarter:')));
-  assert.equal(cards[0].title, 'Nordwell Systems');
+  assert.equal(cards[0].title, 'Acorn & Co.');
   assert.equal(cards[0].tags[0].color, '#36c96b');
+  assert.equal(cards[0].contacts.length, 3);
+  assert.equal(cards[0].contacts[2].role, '');
+  assert.ok(cards[0].activity.every(entry => entry.contacts.length > 0));
+  assert.ok(bootstrap.lists.every(list => list.count > 0));
+  assert.equal(bootstrap.tags.find(tag => tag.name === 'Nuts').category, 'Product');
   assert.equal(cards.find(card => card.lastContact.startsWith('2023')).tags[0].color, '#e27370');
   assert.equal(open({ seed: true }).bootstrap().stats.total, 12);
 });

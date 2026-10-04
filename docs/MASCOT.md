@@ -11,3 +11,5 @@ The conversion of each contact sheet into separate polished PNGs is a one-time a
 Use case: background-extraction. Input image is the exact hand-painted Tux penguin figurine provided. Remove only the pure black backdrop, producing a genuinely transparent PNG cutout. Preserve the penguin's exact pose, silhouette, proportions, face, orange feet, hand-painted glossy surface, subtle texture, and all original colors. Keep the black body opaque and clearly separated from transparent background. No pedestal, no cast shadow, no added objects or text. Center the complete figurine with a narrow transparent margin, square canvas.
 
 See [GAME_PIECE_LIGHTING.md](GAME_PIECE_LIGHTING.md) for the pointer-directed lighting investigation.
+
+About displays a random finished piece each time it opens. The larger artwork has its own layout beside the product/version information, independent of the compact sidebar sizing. The [illustrated catalogue](GAME_PIECE_PERSONALITIES.md) gives every piece a fictional strength and good-fortune story; these do not change application behavior.

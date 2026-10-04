@@ -1,58 +1,70 @@
-# Architecture — Astra implementation brief
+# Leader architecture
 
-Status: accepted for the first prototype. Architectural decisions and their validation belong here; visual polish must not compromise persistence or connector consistency.
+Current implementation: Leader 1.0.0. Browser and MCP mutations share validation, optimistic revisions and SQLite transactions.
 
 ## Components
 
-1. React + TypeScript browser UI, bundled with Vite. English labels and Lucide icons. No remote fonts or CDN assets are required at runtime.
-2. Node.js 24 HTTP API. Serves built UI and JSON API at 127.0.0.1:4177. Development UI proxies `/api` to this server.
-3. Shared JavaScript service backed by Node's built-in SQLite driver, with WAL, foreign keys, indexed list/status/date queries, revision checks, and bounded pagination.
-4. MCP stdio entrypoint using the official TypeScript/JavaScript SDK. It uses the same service/database as HTTP. Standard output is reserved for MCP messages.
+| Layer | Implementation |
+| --- | --- |
+| Browser | React/TypeScript, Vite, local assets, English labels |
+| HTTP | Node.js 24+, Express, built UI and JSON API on 127.0.0.1:4177 |
+| Service | server/store.mjs: validation, collections, queries, revisions, transactions |
+| Storage | Node built-in SQLite, WAL, foreign keys, indexed queries |
+| Company registry | server/companies.mjs: explicit company selection and independent stores |
+| Backups | server/backups.mjs: verified JSON snapshots and retention |
+| MCP | server/mcp.mjs: local stdio transport through the same service |
 
-Browser -> HTTP -> shared service -> SQLite <- shared service <- MCP <- agent.
+```mermaid
+flowchart LR
+  UI[Browser] --> HTTP[HTTP API]
+  Agent[MCP host] --> MCP[MCP stdio]
+  HTTP --> Service[Shared service]
+  MCP --> Service
+  Service --> DB[(Company SQLite database)]
+  Registry[Company registry] --> Service
+  Service --> Backup[Portable JSON backups]
+```
 
-## Data
+## Company isolation and files
 
-Tables: lists, cards, tags, card_tags, checklist_items, activity, card_flags. Stable random IDs. Cards retain legacy completed for export compatibility, but the UI uses independent inQuote/logisticsIssue/administrativeIssue/swIssue/hwIssue flags instead. Each flag has active and a single-line comment; flag writes participate in the same card revision and transaction.
+Default storage is data/ beside this checkout: companies.sqlite is the registry, leader.sqlite is the legacy Demo store, and companies/ contains additional databases. A fresh registry connects Demo and empty additional workspaces; their customer content is never seeded from private correspondence.
 
-Company registry: `data/companies.sqlite`. The legacy `data/leader.sqlite` remains connected as Demo, preserving existing edits. Clab and BrothersInArms use their own files under `data/companies/`. Additional companies use generated UUID filenames; imports never choose a filesystem path. HTTP selects a company per request with X-Leader-Company; MCP requires companyId per operation. There is no process-global active company, so two windows/agents cannot redirect each other's writes.
+HTTP selects a database with X-Leader-Company. MCP requires companyId on scoped tools in multi-company mode. There is no global server-side active company. Disconnect updates the registry and closes its store without deleting files; reconnect reuses those files. The last connected database is protected.
 
-Portable format `leader-company`, version 1: named company metadata, all lists, custom tags and all cards (including archived), IDs, versions, dates, checklist, flags and history. Import creates a fresh company database and validates/restores in a single transaction. Existing company names/databases are not overwritten. Limit: 128 MB per HTTP import, 100,000 cards per package. Failed imports are not registered.
+LEADER_DATA_DIR sets an alternate registry/data directory. LEADER_DB (or LEADER_DB_PATH) enables legacy single-database mode, bypassing company management and the automatic backup scheduler. LEADER_SEED=false disables fictional demo seeding in a fresh store. Use the same absolute directory/path for HTTP and MCP, especially if an MCP host copies the plugin into a cache.
 
-Optimistic concurrency: PATCH must include expected `version`. Concurrent stale updates return conflict. All multi-table changes are transactional. Soft archive is reversible.
+## Model and migrations
 
-## Scale
+Tables include cards, lists, tags, card_tags, checklist_items, activity, card_flags and card_distributors. Stable IDs identify cards, contacts and activity. Contacts are validated JSON; legacy primary name/email mirror the first contact. Activity retains contact snapshots and kinds note/flag/list. Card completed remains for portable compatibility; current work views use independent flags.
 
-Schema v12 expands account categories and project stages by renaming the previous constrained columns to `legacy_account_type` and `legacy_status`, adding new constrained columns, and copying/normalizing values. It preserves the referenced cards table, IDs, revisions, timestamps, collections, and foreign-key links. The activity child table is rebuilt transactionally to add `kind=list`, preserving existing history and participant snapshots. Old lead/contacted/client stages become Contact; qualified/proposal become Evaluation. Old raw values remain in the legacy columns; customer membership does not imply mass production.
+Schema migrations run transactionally when a store opens. Schema v12 expands account categories/stages while preserving the referenced cards table and its foreign keys. Legacy raw account/stage columns remain; old lead/contacted/client stages normalize to Contact and qualified/proposal to Evaluation. Customer membership does not establish Production.
 
-The company manager ensures six permanent lists and their stable display order. Existing Distributors is renamed to Agents with its ID retained; duplicate legacy aliases are merged without adding artificial history or changing card revisions. Each normal saved move records a dated snapshot of the list names. Explicit draft event sequences preserve intermediate moves and are validated atomically against the final saved state.
+Company initialization ensures the six permanent lists and order. Distributors becomes Agents with the ID retained. Duplicate legacy aliases are reconciled without invented list-transition history. Ordinary saved category/list moves do create History; explicit draft sequences retain intermediate moves and must end at the resolved saved list.
 
-User settings live in the browser: display name, motto, Wisdom, map visibility, and hidden list category keys use localStorage; a custom square map Blob uses IndexedDB. Map URLs are temporary object URLs and are revoked when replaced. Hidden lists retain all data and remain available in card/import selectors. Map display uses contain sizing and 70% opacity, so its 1:1 aspect ratio is preserved. These appearance preferences are not part of company JSON exports.
+PATCH and addComment require the current version. Stale writes fail with 409. Card/collection changes and event validation share one transaction, so partial failures roll back. Providing contacts replaces the collection; omitting it preserves contacts. History participants must belong to the card at write time. Archive is reversible by ID; there is no permanent card-delete operation.
 
-Additive schema v4 adds `account_type`, `contact_quarter`, and `card_distributors`. Client-to-partner links use foreign keys, shared role/cycle validation and card revisions. Reverse client lists are derived and paginated. Portable import creates all endpoints before links; invalid links roll back the entire import. Migration batches use stable source IDs and the same service transaction layer; private migration inputs/reports remain outside the repository.
+## Queries and geography
 
-Page sizes: default 100, maximum 200. Filter and search happen server-side; the browser never loads 10,000 cards just to show one page. Count summaries come from SQL. Validate 10,000 inserts and bounded list/search queries in a disposable database and report actual measurements.
+Default page size is 100, maximum 200. Counts, filters and text search run server-side; the browser does not fetch every card to render one page. Search covers text fields, contacts, flag comments and tag names. The browser's global text search overrides its sidebar scope while retaining Stage/Priority filters.
 
-## Local operation and privacy
+Cards and geography share one filter builder. Country aggregation covers all matching rows, independent of pagination, and avoids duplicate counting when both country fields are equal. The UI ignores stale responses and aborts obsolete geography/directory requests. Country-point distribution is visual, not geocoding. Projection animation uses requestAnimationFrame and memoized geometry.
 
-Listen on loopback. Browser writes require a session token supplied by bootstrap plus same-origin checks. CLI/MCP uses local filesystem access; no cloud connector is installed automatically. Database, logs and .env are ignored by Git. Demo seed is fictional and idempotent. Back up the database before future real JSON migration.
+## Portable formats and backups
 
-## Connector deployment
+leader-company v1 includes lists, custom tags, all cards including archived, IDs, versions, dates, contacts, flags, checklists, participant snapshots and relationship links. Import builds a new database atomically; existing companies are not overwritten. HTTP input limit is 128 MB, company package maximum is 100,000 cards. Links are restored after endpoints exist.
 
-First deliver a tested local stdio MCP server. The plugin package points to its built source using PLUGIN_ROOT. Remote ChatGPT access is a separate deployment decision requiring an authenticated endpoint or secure tunnel. A working MCP SDK test does not imply that a user's host has installed the plugin.
+leader-list v1 supports up to 10,000 records. Import remaps tags by name, skips existing IDs, and either preserves categories or applies a target permanent list. Missing external endpoints are omitted and counted. New records carry imported_pending until their first saved edit. Export privacy switches only clear description/activity in the exported copy, not current flag comments.
 
-## Later milestones
+Standard multi-company HTTP startup writes a verified JSON snapshot of each connected database, then repeats every six hours while running. Writes use a temporary file and rename; retention keeps 28 snapshots per company. These are local recovery files, not off-device backups. MCP alone and explicit single-database startup do not run this scheduler.
 
-Import preview with deduplication/provenance; managed backup/restore; stronger full-text search; bulk edits; optional calendar and board modes; opt-in remote access; Windows packaging.
+## Browser preferences and assets
 
-Globe queries and card pagination share one SQL filter builder. Geography aggregates all matching rows on the server without hydrating the entire card collection. The frontend passes the list's query to both globe views, aborts obsolete geography/directory requests, and ignores stale pagination responses. Dot geometry is memoized while the projection animates with requestAnimationFrame along a shortest great-circle path.
+Display name, motto, Wisdom, map visibility, hidden lists and game-piece selection use browser localStorage. Custom map Blobs use IndexedDB; temporary object URLs are revoked on replacement. Preferences are scoped to a browser profile/origin and excluded from company JSON. The map is square, contain-sized and 70% opaque. Game pieces are finished transparent PNGs; asset generation is a separate one-time process.
 
-Schema v6 adds swIssue and hwIssue. Existing card_flags tables are rebuilt inside one immediate transaction, retaining comments, activation timestamps and card revisions. The flag index and foreign-key constraint are recreated. Older exports import with new flags inactive. HTTP, MCP, filtering, statistics and geography share the same five flag keys.
+Draft fields autosave when leaving a card/company or on browser focus loss/visibility change. Undo discards unsaved fields/events; it cannot undo committed writes. Notes save explicitly. UI flag toggles set the local contact date; the raw API does not infer a contact date merely from a flag PATCH.
 
+## Local security and deployment
 
-Schema v7 adds a contacts JSON column to cards in the schema transaction. Legacy name/email pairs become the first contact with a stable generated ID and empty role, without changing card revisions or timestamps. Service validation controls shape, lengths, email validity, row count and ID uniqueness within a card; writes keep legacy primary-contact columns synchronized. Search uses json_each over names, roles and emails; the same filter serves lists and geography. Existing portable format remains backward-compatible for import.
+HTTP binds loopback, validates Host, checks same Origin and a bootstrap session token for writes, and requires explicit company scope. This is a local single-user boundary, not a remote authentication system. No remote font/CDN asset is needed for normal UI operation. Dependencies must be installed before offline use.
 
-
-Schema v8 adds activity.contacts JSON snapshots and fills missing contact statuses with active in one schema transaction, retaining card versions/timestamps. History creation validates participant IDs against the same card inside its revision transaction; snapshots avoid losing attribution on later contact edits/removal. Portable import/export validates and retains snapshots, while accepting old unlinked activity.
-
-Schema v10 adds `cards.imported_pending` and `activity.kind`. List imports run inside one SQLite transaction using shared card validation, preserve portable history, remap tags by name, and skip existing card IDs. A user edit clears the temporary Imported marker. UI flag toggles are queued with timestamps until the card saves or Undo discards them; the service validates their transitions against final flag state and writes each to activity. MCP/HTTP flag changes without an explicit transition list also produce a history event.
+The source includes portable plugin metadata and a Codex compatibility overlay. Host installation is separate; MCP stdout is reserved for protocol messages. No HTTPS MCP endpoint, public hosting, cloud sync or outgoing email is provided. Windows is locally verified; Linux/ARM64 and macOS are unverified deployment targets.

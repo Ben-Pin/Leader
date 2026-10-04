@@ -1,37 +1,36 @@
-// Fictional records only. These names and contact details are demonstration data.
+// Fictional woodland companies. Reserved .example domains never identify real contacts.
 export const DEMO_LISTS = [
-  { id: 'demo-clients', name: 'Customers', color: '#4779eb' },
-  { id: 'demo-prospects', name: 'Prospects', color: '#a077df' },
-  { id: 'demo-partners', name: 'Partners', color: '#e9a74a' },
+  { id: 'demo-leads', name: 'Leads', color: '#D65C59' },
+  { id: 'demo-prospects', name: 'Prospects', color: '#DC913D' },
+  { id: 'demo-opportunities', name: 'Opportunities', color: '#C4AA35' },
+  { id: 'demo-clients', name: 'Customers', color: '#4E9F69' },
+  { id: 'demo-partners', name: 'Partners', color: '#4C83CB' },
+  { id: 'demo-agents', name: 'Agents', color: '#9765CE' },
 ];
-
 export const DEMO_TAGS = [
-  { id: 'demo-iot', name: 'IoT', color: '#557bdf' },
-  { id: 'demo-industrial', name: 'Промышленность', color: '#ad77d9' },
-  { id: 'demo-gateway', name: 'Шлюзы', color: '#df9960' },
-  { id: 'demo-pilot', name: 'Пилотный проект', color: '#42a991' },
-  { id: 'demo-distributor', name: 'Дистрибьютор', color: '#6b8b9f' },
+  { id: 'demo-nuts', name: 'Nuts', color: '#AF8546', category: 'Product' },
+  { id: 'demo-vegetables', name: 'Vegetables', color: '#5D9D62', category: 'Product' },
+  { id: 'demo-fruit', name: 'Fruit', color: '#CD745F', category: 'Product' },
+  { id: 'demo-samples', name: 'Samples', color: '#6687C1', category: 'Stage' },
+  { id: 'demo-winter', name: 'Winter pantry', color: '#8378B3', category: 'Application' },
 ];
-
+const contact=(id,name,role,email,status='active')=>({id,name,role,email,status});
+const record=(title,country,listId,accountType,description,contacts,lastContact,extra={})=>({title,company:title,country,listId,accountType,description:'Fictional demo company. '+description,contacts,lastContact,status:'contact',tagIds:[],...extra});
 export const DEMO_CARDS = [
-  {
-    title: 'Nordwell Systems', company: 'Nordwell Systems', country: 'Германия',
-    contactName: 'Anna Weber', email: 'anna@nordwell.example', listId: 'demo-clients',
-    description: 'Демо-компания • Мониторинг промышленного оборудования.\n\nОбсуждаем пилот на трёх заводах: 40 IoT-шлюзов с LTE, резервным питанием и удалённым управлением. После успешного пилота — до 600 устройств в год.\n\nСледующий шаг: согласовать спецификацию и срок поставки образцов.',
-    lastContact: '2026-09-28', dueDate: '2026-10-02', status: 'proposal', priority: 3, starred: true,
-    tagIds: ['demo-iot', 'demo-industrial', 'demo-pilot'],
-    checklist: [{ text: 'Подготовить техническое предложение', done: true }, { text: 'Подтвердить комплектацию LTE', done: false }, { text: 'Отправить расчёт на 40 устройств', done: false }],
-    activity: [{ text: 'Анна подтвердила бюджет пилота. Нужен расчёт двух вариантов комплектации.', createdAt: '2026-09-28T10:30:00.000Z' }, { text: 'Провели демонстрацию удалённого мониторинга.', createdAt: '2026-09-18T08:00:00.000Z' }],
-  },
-  { title: 'Aster Marine', company: 'Aster Marine', country: 'Норвегия', contactName: 'Erik Lund', email: 'erik@aster-marine.example', listId: 'demo-clients', description: 'Демо-компания • Телеметрия для небольших портов. Нужен шлюз с широким температурным диапазоном и двумя Ethernet-портами.', lastContact: '2026-09-25', dueDate: '2026-10-05', status: 'qualified', priority: 2, tagIds: ['demo-gateway', 'demo-pilot'], checklist: [{ text: 'Уточнить питание на объектах', done: false }] },
-  { title: 'Kanso Robotics', company: 'Kanso Robotics', country: 'Япония', contactName: 'Yuki Tanaka', email: 'yuki@kanso.example', listId: 'demo-clients', description: 'Демо-компания • Контроллеры автономных складских тележек. Получили образцы, ожидаем результаты нагрузочных тестов.', lastContact: '2026-09-20', status: 'client', priority: 1, starred: true, tagIds: ['demo-industrial'], checklist: [{ text: 'Образцы доставлены', done: true }, { text: 'Получить протокол испытаний', done: false }] },
-  { title: 'Cedar Grid', company: 'Cedar Grid', country: 'Израиль', contactName: 'Noa Levi', email: 'noa@cedar-grid.example', listId: 'demo-clients', description: 'Демо-компания • Системы управления солнечными станциями. Запросили коммерческое предложение на серию 120 устройств.', lastContact: '2026-08-12', status: 'proposal', priority: 2, tagIds: ['demo-iot', 'demo-gateway'] },
-  { title: 'Bruma Labs', company: 'Bruma Labs', country: 'Испания', contactName: 'Lucía Martín', email: 'lucia@bruma.example', listId: 'demo-clients', description: 'Демо-компания • Разрабатывают датчики качества воздуха для муниципальных зданий. Контакт возобновлён после летней паузы.', lastContact: '2026-07-06', status: 'contacted', priority: 0, tagIds: ['demo-iot'] },
-  { title: 'Harbourline Energy', company: 'Harbourline Energy', country: 'Великобритания', contactName: 'Oliver Reed', email: 'oliver@harbourline.example', listId: 'demo-clients', description: 'Демо-компания • Телеметрия распределённых аккумуляторов. Проверить актуальность проекта и новый график закупок.', lastContact: '2025-11-18', status: 'qualified', priority: 1, tagIds: ['demo-gateway', 'demo-industrial'] },
-  { title: 'Vela Automation', company: 'Vela Automation', country: 'Италия', contactName: 'Sofia Riva', email: 'sofia@vela.example', listId: 'demo-clients', description: 'Демо-компания • Интеграция производственных линий. Пилот завершён, партия поставлена; поддерживаем отношения.', lastContact: '2025-05-09', status: 'client', completed: true, priority: 0, tagIds: ['demo-industrial'] },
-  { title: 'Prairie Sensorics', company: 'Prairie Sensorics', country: 'Канада', contactName: 'Maya Brooks', email: 'maya@prairie.example', listId: 'demo-prospects', description: 'Демо-компания • Автоматизация полива. Сохраняем как перспективный контакт до подтверждения сроков запуска.', lastContact: '2026-09-10', status: 'lead', priority: 0, tagIds: ['demo-iot'] },
-  { title: 'Solena Mobility', company: 'Solena Mobility', country: 'Франция', contactName: 'Camille Moreau', email: 'camille@solena.example', listId: 'demo-prospects', description: 'Демо-компания • Мониторинг зарядных станций. Требования ещё формируются, договорились вернуться к обсуждению осенью.', lastContact: '2024-06-14', status: 'contacted', priority: 0, tagIds: ['demo-gateway'] },
-  { title: 'Tamarind Controls', company: 'Tamarind Controls', country: 'Индия', contactName: 'Arjun Rao', email: 'arjun@tamarind.example', listId: 'demo-prospects', description: 'Демо-компания • Системы учёта энергии. Старый контакт, перед следующим обращением проверить роль контактного лица.', lastContact: '2023-10-04', status: 'lead', priority: 0, tagIds: ['demo-industrial'] },
-  { title: 'Kepler Components', company: 'Kepler Components', country: 'Нидерланды', contactName: 'Lars de Vries', email: 'lars@kepler-components.example', listId: 'demo-partners', description: 'Демо-компания • Региональный дистрибьютор в странах Бенилюкса. Обсудить демонстрационные комплекты для отдела продаж.', lastContact: '2026-09-22', status: 'qualified', priority: 2, starred: true, tagIds: ['demo-distributor', 'demo-gateway'] },
-  { title: 'Southern Arc', company: 'Southern Arc', country: 'Австралия', contactName: 'Amelia Cole', email: 'amelia@southern-arc.example', listId: 'demo-partners', description: 'Демо-компания • Партнёр по интеграции. Обменялись материалами по установке шлюзов на удалённых объектах.', lastContact: '2025-02-07', status: 'contacted', priority: 0, tagIds: ['demo-distributor', 'demo-iot'] },
+  record('Acorn & Co.','Germany','demo-clients','client',
+    'Squirrel-run woodland pantry. Ordered 120 kg of hazelnuts and 60 kg of walnuts for autumn deliveries. Requests dry, shell-on nuts in reusable 5 kg sacks. A 20 kg apple trial is under evaluation; the next quotation should price nuts and fruit separately.',
+    [contact('demo-hazel','Hazel Squirrel','Purchasing manager','hazel@acorn.example','main'),contact('demo-pip','Pip Squirrel','Storekeeper','pip@acorn.example'),contact('demo-willow','Willow Squirrel','','willow@acorn.example','useful')],
+    '2026-10-03',{status:'massProduction',priority:3,starred:true,dueDate:'2026-10-08',tagIds:['demo-nuts','demo-fruit','demo-winter'],flags:{inQuote:{active:true,comment:'Quote the next 120 kg hazelnut delivery'}},checklist:[{text:'Confirm reusable 5 kg sacks',done:true},{text:'Send separate nut and apple prices',done:false},{text:'Confirm Thursday delivery',done:false}],
+      activity:[{text:'Hazel confirmed the autumn nut order: 120 kg hazelnuts and 60 kg walnuts. Quoted reusable sacks; Thursday delivery is preferred.',createdAt:'2026-10-03T10:30:00.000Z',contactIds:['demo-hazel']},{text:'Pip received the apple samples. Keep the fruit trial separate from the confirmed nut order.',createdAt:'2026-09-24T09:15:00.000Z',contactIds:['demo-pip','demo-hazel']}]}),
+  record('Bramble Bear Bakery','Canada','demo-clients','client','Bear bakery buying apples, pears and walnuts for fruit pies. The first order arrived; weekly deliveries begin after packaging approval.',[contact('demo-bruno','Bruno Bear','Head baker','bruno@bramble.example','main')],'2026-10-02',{status:'rampUp',priority:2,tagIds:['demo-fruit','demo-nuts'],flags:{logisticsIssue:{active:true,comment:'Confirm insulated crates for pears'}}}),
+  record('Clover Rabbit Kitchen','United Kingdom','demo-opportunities','opportunity','Rabbit kitchen evaluating carrots, cabbage and leafy greens for 40 lunch boxes each weekday. Samples accepted; weekly volumes and price remain to be agreed.',[contact('demo-clover','Clover Rabbit','Kitchen buyer','clover@rabbit-kitchen.example')],'2026-10-01',{status:'evaluation',priority:2,tagIds:['demo-vegetables','demo-samples']}),
+  record('Mossy Hedgehog Market','France','demo-prospects','unspecified','Hedgehog market interested in mixed berries and small apples. Requested availability for the winter season; no order yet.',[contact('demo-hedge','Hattie Hedgehog','','hattie@hedgehog-market.example')],'2026-09-29',{tagIds:['demo-fruit','demo-winter']}),
+  record('Silver Fox Fruit Shop','Netherlands','demo-opportunities','opportunity','Fox fruit shop testing pears and apples in returnable crates. Requires consistent ripeness and a price for a 50 kg trial before committing.',[contact('demo-fenn','Fenn Fox','Owner','fenn@fox-fruit.example','decisions')],'2026-09-28',{status:'evaluation',priority:1,tagIds:['demo-fruit','demo-samples']}),
+  record('Willow Beaver Catering','Sweden','demo-clients','client','Beaver catering cooperative with a confirmed monthly carrot and cabbage order. Expanding the programme to seasonal fruit after the first deliveries.',[contact('demo-brook','Brook Beaver','Operations manager','brook@beaver-catering.example')],'2026-09-25',{status:'massProduction',tagIds:['demo-vegetables','demo-fruit']}),
+  record('Oak Owl Orchard','Italy','demo-partners','partner','Owl orchard packs apples and pears for joint woodland tastings. Agreed to share harvest availability and reusable crates; this is a supply partnership.',[contact('demo-olive','Olive Owl','Orchard manager','olive@owl-orchard.example')],'2026-09-22',{status:'rampUp',starred:true,tagIds:['demo-fruit']}),
+  record('Pine Marten Produce','Finland','demo-agents','distributor','Marten agent sources nuts and vegetables for three woodland shops. Requests consolidated invoices, mixed pallets and separate shop labels.',[contact('demo-milo','Milo Marten','Agent','milo@marten-produce.example')],'2026-09-18',{status:'evaluation',priority:2,tagIds:['demo-nuts','demo-vegetables']}),
+  record('Deer Meadow Grocers','Poland','demo-prospects','unspecified','Deer grocery considering weekly leafy greens and apples. Asked for a sample box; delivery frequency has not been confirmed.',[contact('demo-dawn','Dawn Deer','Buyer','dawn@deer-grocers.example')],'2026-09-10',{tagIds:['demo-vegetables','demo-fruit','demo-samples']}),
+  record('Badger Burrow Stores','Denmark','demo-leads','lead','Badger store newly identified as a possible buyer of walnuts and root vegetables. Product interest is preliminary; the buyer still needs to confirm volumes.',[contact('demo-basil','Basil Badger','','basil@badger-stores.example')],'2025-11-18',{tagIds:['demo-nuts','demo-vegetables']}),
+  record('Robin Berry Delivery','Norway','demo-agents','distributor','Robin delivery service buys fruit on behalf of small forest cafes. Interested in a shared weekly route and labelled berry baskets.',[contact('demo-rowan','Rowan Robin','Route coordinator','rowan@robin-delivery.example')],'2024-06-14',{tagIds:['demo-fruit']}),
+  record('Dormouse Winter Pantry','Austria','demo-leads','lead','Dormouse pantry asked about a nut assortment several seasons ago. Confirm the current buyer and storage capacity before offering a new winter batch.',[contact('demo-dot','Dot Dormouse','','dot@dormouse-pantry.example')],'2023-10-04',{status:'legacy',tagIds:['demo-nuts','demo-winter']}),
 ];

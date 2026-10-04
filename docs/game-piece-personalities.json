@@ -1,0 +1,482 @@
+[
+  {
+    "id": "tux",
+    "name": "Tux",
+    "group": "Mascot",
+    "image": "/tokens/tux-hand-painted.png",
+    "strength": "Calm troubleshooting and practical teamwork.",
+    "luck": "A stubborn problem finally making sense."
+  },
+  {
+    "id": "car",
+    "name": "Race car",
+    "group": "Travel",
+    "image": "/tokens/race-car.png",
+    "strength": "Fast decisions without losing focus.",
+    "luck": "A clear road to the next milestone."
+  },
+  {
+    "id": "plane",
+    "name": "Propeller plane",
+    "group": "Travel",
+    "image": "/tokens/propeller-plane.png",
+    "strength": "Seeing beyond the nearest obstacle.",
+    "luck": "An introduction across borders."
+  },
+  {
+    "id": "ship",
+    "name": "Tugboat",
+    "group": "Travel",
+    "image": "/tokens/tugboat.png",
+    "strength": "Helping a heavy project move steadily.",
+    "luck": "A difficult handover reaching safe harbour."
+  },
+  {
+    "id": "train",
+    "name": "Steam train",
+    "group": "Travel",
+    "image": "/tokens/steam-train.png",
+    "strength": "Dependable routines and steady progress.",
+    "luck": "A delivery arriving exactly when needed."
+  },
+  {
+    "id": "cat",
+    "name": "Lucky cat",
+    "group": "Mascot",
+    "image": "/tokens/lucky-cat.png",
+    "strength": "Welcoming people and spotting opportunities.",
+    "luck": "A friendly new customer walking through the door."
+  },
+  {
+    "id": "dog",
+    "name": "Puppy",
+    "group": "Animals",
+    "image": "/tokens/puppy.png",
+    "strength": "Loyal follow-up and warm relationships.",
+    "luck": "An old contact returning with good news."
+  },
+  {
+    "id": "rocket",
+    "name": "Rocket",
+    "group": "Travel",
+    "image": "/tokens/rocket.png",
+    "strength": "Bold launches and ambitious experiments.",
+    "luck": "The first successful lift-off of a new project."
+  },
+  {
+    "id": "globe",
+    "name": "Globe",
+    "group": "Treasures",
+    "image": "/tokens/globe.png",
+    "strength": "Connecting distant people and markets.",
+    "luck": "A promising route into a new country."
+  },
+  {
+    "id": "gift",
+    "name": "Treasure chest",
+    "group": "Treasures",
+    "image": "/tokens/treasure-chest.png",
+    "strength": "Recognising value hidden in plain sight.",
+    "luck": "An unexpectedly useful discovery."
+  },
+  {
+    "id": "rabbit",
+    "name": "Rabbit",
+    "group": "Animals",
+    "image": "/tokens/rabbit.png",
+    "strength": "Quick learning and nimble adjustments.",
+    "luck": "A small trial growing into a healthy opportunity."
+  },
+  {
+    "id": "lion",
+    "name": "Lion",
+    "group": "Animals",
+    "image": "/tokens/lion.png",
+    "strength": "Courage in demanding conversations.",
+    "luck": "The confidence to ask the important question."
+  },
+  {
+    "id": "hippo",
+    "name": "Hippo",
+    "group": "Animals",
+    "image": "/tokens/hippo.png",
+    "strength": "Patience and a stable negotiating position.",
+    "luck": "A large agreement finding firm ground."
+  },
+  {
+    "id": "parrot",
+    "name": "Parrot",
+    "group": "Animals",
+    "image": "/tokens/parrot.png",
+    "strength": "Clear messages and memorable storytelling.",
+    "luck": "The right words reaching the right listener."
+  },
+  {
+    "id": "pelican",
+    "name": "Pelican",
+    "group": "Animals",
+    "image": "/tokens/pelican.png",
+    "strength": "Gathering useful resources for the team.",
+    "luck": "A well-stocked plan with nothing essential missing."
+  },
+  {
+    "id": "bus",
+    "name": "Double-decker bus",
+    "group": "Travel",
+    "image": "/tokens/double-decker-bus.png",
+    "strength": "Bringing many people along together.",
+    "luck": "All stakeholders arriving at the same conclusion."
+  },
+  {
+    "id": "apple",
+    "name": "Apple",
+    "group": "Nature",
+    "image": "/tokens/apple.png",
+    "strength": "Simple, fresh ideas and everyday care.",
+    "luck": "A productive morning and a healthy new start."
+  },
+  {
+    "id": "pineapple",
+    "name": "Pineapple",
+    "group": "Nature",
+    "image": "/tokens/pineapple.png",
+    "strength": "Hospitality with a distinctive personality.",
+    "luck": "A warm welcome in an unfamiliar market."
+  },
+  {
+    "id": "sheep",
+    "name": "Sheep",
+    "group": "Animals",
+    "image": "/tokens/sheep.png",
+    "strength": "Gentle consistency and cooperative work.",
+    "luck": "A group finding an easy rhythm together."
+  },
+  {
+    "id": "scientist",
+    "name": "Einstein",
+    "group": "Mascot",
+    "image": "/tokens/scientist.png",
+    "strength": "Curiosity, questions and clever connections.",
+    "luck": "An elegant answer to an awkward puzzle."
+  },
+  {
+    "id": "boot",
+    "name": "Hiking boot",
+    "group": "Everyday",
+    "image": "/tokens/hiking-boot.png",
+    "strength": "Persistence through difficult terrain.",
+    "luck": "A long search ending at the right company."
+  },
+  {
+    "id": "camera",
+    "name": "Vintage camera",
+    "group": "Everyday",
+    "image": "/tokens/vintage-camera.png",
+    "strength": "Noticing details others overlook.",
+    "luck": "A useful fact captured before it is forgotten."
+  },
+  {
+    "id": "robot",
+    "name": "Tin robot",
+    "group": "Everyday",
+    "image": "/tokens/tin-robot.png",
+    "strength": "Orderly work and reliable checklists.",
+    "luck": "A repetitive task becoming pleasantly manageable."
+  },
+  {
+    "id": "typewriter",
+    "name": "Typewriter",
+    "group": "Everyday",
+    "image": "/tokens/typewriter.png",
+    "strength": "Precise notes and carefully chosen words.",
+    "luck": "A proposal expressing exactly what you mean."
+  },
+  {
+    "id": "telephone",
+    "name": "Rotary telephone",
+    "group": "Everyday",
+    "image": "/tokens/rotary-telephone.png",
+    "strength": "Starting conversations and listening well.",
+    "luck": "A timely call opening the next door."
+  },
+  {
+    "id": "knight",
+    "name": "Chess knight",
+    "group": "Treasures",
+    "image": "/tokens/chess-knight.png",
+    "strength": "Creative moves and tactical patience.",
+    "luck": "An unexpected route around a familiar obstacle."
+  },
+  {
+    "id": "owl",
+    "name": "Owl",
+    "group": "Animals",
+    "image": "/tokens/owl.png",
+    "strength": "Thoughtful judgement after careful observation.",
+    "luck": "A sound decision made without rushing."
+  },
+  {
+    "id": "cactus",
+    "name": "Flowering cactus",
+    "group": "Nature",
+    "image": "/tokens/cactus.png",
+    "strength": "Resilience and sensible boundaries.",
+    "luck": "A difficult season ending with a bright bloom."
+  },
+  {
+    "id": "telescope",
+    "name": "Spyglass telescope",
+    "group": "Everyday",
+    "image": "/tokens/telescope.png",
+    "strength": "Long-range planning and focused research.",
+    "luck": "A distant possibility becoming visible."
+  },
+  {
+    "id": "balloon",
+    "name": "Hot-air balloon",
+    "group": "Travel",
+    "image": "/tokens/hot-air-balloon.png",
+    "strength": "Perspective and a lighter approach.",
+    "luck": "A fresh view of a complicated situation."
+  },
+  {
+    "id": "metal-rocker",
+    "name": "Metal rocker",
+    "group": "Mascot",
+    "image": "/tokens/metal-rocker.png",
+    "strength": "Energy, individuality and fearless expression.",
+    "luck": "A memorable pitch that wakes up the room."
+  },
+  {
+    "id": "cyborg-gentleman",
+    "name": "Cyborg gentleman",
+    "group": "Mascot",
+    "image": "/tokens/cyborg-gentleman.png",
+    "strength": "Combining courtesy with analytical precision.",
+    "luck": "A technical discussion becoming a trusted relationship."
+  },
+  {
+    "id": "pastel-unicorn",
+    "name": "Pastel unicorn",
+    "group": "Animals",
+    "image": "/tokens/pastel-unicorn.png",
+    "strength": "Imagination and optimistic experiments.",
+    "luck": "A surprising idea finding its first supporter."
+  },
+  {
+    "id": "lemur",
+    "name": "Lemur",
+    "group": "Animals",
+    "image": "/tokens/lemur.png",
+    "strength": "Playful curiosity and social agility.",
+    "luck": "An informal chat turning into a useful connection."
+  },
+  {
+    "id": "astronaut-helmet",
+    "name": "Astronaut helmet",
+    "group": "Travel",
+    "image": "/tokens/astronaut-helmet.png",
+    "strength": "Preparation before entering unfamiliar territory.",
+    "luck": "A safe first step into a challenging assignment."
+  },
+  {
+    "id": "red-octopus",
+    "name": "Red octopus",
+    "group": "Animals",
+    "image": "/tokens/red-octopus.png",
+    "strength": "Coordinating several threads without losing context.",
+    "luck": "Many loose ends coming together at once."
+  },
+  {
+    "id": "raven",
+    "name": "Raven",
+    "group": "Animals",
+    "image": "/tokens/raven.png",
+    "strength": "Resourceful thinking and sharp recall.",
+    "luck": "A forgotten clue unlocking the current problem."
+  },
+  {
+    "id": "arcade-cabinet",
+    "name": "Arcade cabinet",
+    "group": "Everyday",
+    "image": "/tokens/arcade-cabinet.png",
+    "strength": "Learning through attempts and celebrating progress.",
+    "luck": "A second try beating the previous high score."
+  },
+  {
+    "id": "mars-rover",
+    "name": "Mars rover",
+    "group": "Travel",
+    "image": "/tokens/mars-rover.png",
+    "strength": "Methodical exploration of untested ground.",
+    "luck": "A small piece of evidence proving a new direction."
+  },
+  {
+    "id": "armored-soldier",
+    "name": "Armored soldier",
+    "group": "Mascot",
+    "image": "/tokens/armored-soldier.png",
+    "strength": "Protecting commitments and holding a steady line.",
+    "luck": "A hard deadline met despite obstacles."
+  },
+  {
+    "id": "ornate-seahorse",
+    "name": "Ornate seahorse",
+    "group": "Animals",
+    "image": "/tokens/ornate-seahorse.png",
+    "strength": "Balance, adaptability and quiet distinction.",
+    "luck": "An unusual niche becoming a good fit."
+  },
+  {
+    "id": "crown",
+    "name": "Royal crown",
+    "group": "Treasures",
+    "image": "/tokens/royal-crown.png",
+    "strength": "Responsible leadership and setting standards.",
+    "luck": "A team placing confidence in your judgement."
+  },
+  {
+    "id": "diving-helmet",
+    "name": "Diving helmet",
+    "group": "Travel",
+    "image": "/tokens/diving-helmet.png",
+    "strength": "Looking below the surface of an issue.",
+    "luck": "The real requirement emerging from a deep discussion."
+  },
+  {
+    "id": "armillary-sphere",
+    "name": "Armillary sphere",
+    "group": "Treasures",
+    "image": "/tokens/armillary-sphere.png",
+    "strength": "Finding patterns in moving parts.",
+    "luck": "A complicated plan settling into alignment."
+  },
+  {
+    "id": "lighthouse",
+    "name": "Lighthouse",
+    "group": "Travel",
+    "image": "/tokens/lighthouse.png",
+    "strength": "Clear direction and dependable guidance.",
+    "luck": "A lost conversation finding its way back."
+  },
+  {
+    "id": "violin",
+    "name": "Violin and bow",
+    "group": "Everyday",
+    "image": "/tokens/violin.png",
+    "strength": "Harmony, timing and attentive collaboration.",
+    "luck": "Several strong opinions forming one workable agreement."
+  },
+  {
+    "id": "hourglass",
+    "name": "Hourglass",
+    "group": "Treasures",
+    "image": "/tokens/hourglass.png",
+    "strength": "Patient pacing and respect for timing.",
+    "luck": "An opportunity ripening at the right moment."
+  },
+  {
+    "id": "explorer-map",
+    "name": "Explorer's map",
+    "group": "Treasures",
+    "image": "/tokens/explorer-map.png",
+    "strength": "Turning uncertainty into a useful route.",
+    "luck": "A promising path through unfamiliar companies."
+  },
+  {
+    "id": "dragon",
+    "name": "Dragon",
+    "group": "Animals",
+    "image": "/tokens/dragon.png",
+    "strength": "Ambition, conviction and guarding valuable work.",
+    "luck": "A bold negotiation protecting the value of your offer."
+  },
+  {
+    "id": "gramophone",
+    "name": "Gramophone",
+    "group": "Everyday",
+    "image": "/tokens/gramophone.png",
+    "strength": "Listening to experience and preserving good stories.",
+    "luck": "An older relationship sharing a valuable lesson."
+  },
+  {
+    "id": "samurai-fox",
+    "name": "Samurai fox",
+    "group": "Mascot",
+    "image": "/tokens/samurai-fox.png",
+    "strength": "Disciplined strategy with a clever flourish.",
+    "luck": "A precise move at the decisive moment."
+  },
+  {
+    "id": "mechanical-bee",
+    "name": "Mechanical bee",
+    "group": "Animals",
+    "image": "/tokens/mechanical-bee.png",
+    "strength": "Diligent teamwork and small repeated efforts.",
+    "luck": "Many little follow-ups producing a fruitful result."
+  },
+  {
+    "id": "eggplant-mascot",
+    "name": "Eggplant",
+    "group": "Mascot",
+    "image": "/tokens/eggplant-mascot.png",
+    "strength": "Original thinking and a cheerful sense of humour.",
+    "luck": "An unconventional idea getting a fair hearing."
+  },
+  {
+    "id": "blue-whale",
+    "name": "Blue whale",
+    "group": "Animals",
+    "image": "/tokens/blue-whale.png",
+    "strength": "Depth, calm and confidence over long distances.",
+    "luck": "A major relationship growing steadily rather than hurriedly."
+  },
+  {
+    "id": "bamboo-panda",
+    "name": "Bamboo panda",
+    "group": "Animals",
+    "image": "/tokens/bamboo-panda.png",
+    "strength": "Finding balance and lowering the temperature.",
+    "luck": "A tense discussion becoming comfortable again."
+  },
+  {
+    "id": "mail-truck",
+    "name": "Mail truck",
+    "group": "Travel",
+    "image": "/tokens/mail-truck.png",
+    "strength": "Reliable delivery and keeping promises visible.",
+    "luck": "An awaited reply arriving in your inbox."
+  },
+  {
+    "id": "steampunk-snail",
+    "name": "Traveling snail",
+    "group": "Animals",
+    "image": "/tokens/steampunk-snail.png",
+    "strength": "Patient travel with everything needed close at hand.",
+    "luck": "Slow progress reaching a lasting destination."
+  },
+  {
+    "id": "frog-king",
+    "name": "Frog king",
+    "group": "Mascot",
+    "image": "/tokens/frog-king.png",
+    "strength": "Seeing potential before appearances improve.",
+    "luck": "An overlooked lead turning into a rewarding relationship."
+  },
+  {
+    "id": "vintage-radio",
+    "name": "Vintage radio",
+    "group": "Everyday",
+    "image": "/tokens/vintage-radio.png",
+    "strength": "Listening for useful signals in the noise.",
+    "luck": "A timely message tuning you into an opportunity."
+  },
+  {
+    "id": "wise-tortoise",
+    "name": "Wise tortoise",
+    "group": "Animals",
+    "image": "/tokens/wise-tortoise.png",
+    "strength": "Long memory and sustainable progress.",
+    "luck": "A careful decision paying off over time."
+  }
+]

@@ -39,7 +39,7 @@ export function UserSettings({ initial, customMap, onSave }: { initial: UserPref
   };
   return <form className="create-form user-settings" onSubmit={submit}>
     <section><h3>Profile and motto</h3><label>Display name<input value={settings.userName} maxLength={80} onChange={event => setSettings({ ...settings, userName: event.target.value })} disabled={busy}/></label>
-      <label>Motto under Leader<input aria-label="Leader motto" value={settings.motto} maxLength={120} placeholder={DEFAULT_MOTTO} onChange={event => setSettings({ ...settings, motto: event.target.value })} disabled={busy}/></label>
+      <label>Leader's motto<input aria-label="Leader's motto" value={settings.motto} maxLength={120} placeholder={DEFAULT_MOTTO} onChange={event => setSettings({ ...settings, motto: event.target.value })} disabled={busy}/></label>
       <button type="button" className="text-button" disabled={busy} onClick={() => setSettings({ ...settings, motto: DEFAULT_MOTTO })}>Use default motto</button></section>
     <section><h3><Lightbulb size={17}/>Wisdom</h3><label className="list-transfer-check"><input type="checkbox" checked={settings.wisdomEnabled} disabled={busy} onChange={event => setSettings({ ...settings, wisdomEnabled: event.target.checked })}/> Show thought cards</label><p className="form-hint">A content source has not been connected yet.</p></section>
     <section><h3><Map size={17}/>Background map</h3><label className="list-transfer-check"><input type="checkbox" checked={settings.mapVisible} disabled={busy} onChange={event => setSettings({ ...settings, mapVisible: event.target.checked })}/> Show map when no card is open</label>

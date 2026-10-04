@@ -7,6 +7,7 @@ import {
   UsersRound, X, DollarSign, Truck, TriangleAlert, Undo2, Database, Download, Upload, Wrench,
 } from 'lucide-react';
 import { ApiError, request, selectCompany } from './api';
+import { version as appVersion } from '../package.json';
 import { Relationships } from './Relationships';
 import { ClientGlobe } from './ClientGlobe';
 import { GameTokenArt, GameTokenGallery, gameTokens, useGameTokenHold } from './GameTokens';
@@ -137,6 +138,8 @@ export default function App() {
   const [saveError, setSaveError] = useState('');
   const [conflict, setConflict] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [aboutTokenId, setAboutTokenId] = useState('tux');
+  const openAbout = () => { setAboutTokenId(gameTokens[Math.floor(Math.random() * gameTokens.length)].id); setModal('about'); };
   const [modal, setModal] = useState<'card' | 'list' | 'tag' | 'about' | 'archive' | 'companies' | 'globe' | 'profile' | 'gameTokens' | 'listExport' | 'listImport' | null>(null);
   const [userName,setUserName]=useState(()=>localStorage.getItem('leader.userName')||'Local user');
   const [motto, setMotto] = useState(() => localStorage.getItem('leader.motto') || DEFAULT_MOTTO);
@@ -537,9 +540,9 @@ export default function App() {
 
   return <div className={`app-shell ${selected ? 'detail-is-open' : ''} ${sidebarOpen ? 'sidebar-is-open' : ''}`}>
     <aside className="icon-rail" aria-label="Application">
-      <button className="brand-mark" aria-label="About Leader" title="About Leader" onClick={() => setModal('about')}><LeaderLogo monochrome /></button>
+      <button className="brand-mark" aria-label="About Leader" title="About Leader" onClick={openAbout}><LeaderLogo /></button>
       <div className="rail-group">
-        <IconButton label="All customers" className={`rail-button ${activeSidebar('view','all')?'selected-rail':''}`} onClick={() => chooseSelection({ kind: 'view', id: 'all' })}><LayoutList size={23}/></IconButton>
+        <IconButton label="All cards" className={`rail-button ${activeSidebar('view','all')?'selected-rail':''}`} onClick={() => chooseSelection({ kind: 'view', id: 'all' })}><LayoutList size={23}/></IconButton>
         <IconButton label="In work — active flags" className={`rail-button ${activeSidebar('view','active')?'selected-rail':''}`} onClick={() => chooseSelection({kind:'view',id:'active'})}><SlidersHorizontal size={22}/></IconButton>
         <IconButton label="Important" className={`rail-button ${activeSidebar('view', 'starred') ? 'selected-rail' : ''}`} onClick={() => chooseSelection({ kind: 'view', id: 'starred' })}><Star size={22}/></IconButton>
         <IconButton label="Search cards" className="rail-button" onClick={() => searchRef.current?.focus()}><Search size={22}/></IconButton>
@@ -566,7 +569,7 @@ export default function App() {
         <div className="section-heading tags-heading"><button onClick={() => setShowTags(!showTags)} aria-expanded={showTags}>{showTags ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}<span>Tags</span></button><IconButton label="Create tag" onClick={() => setModal('tag')}><Plus size={16}/></IconButton></div>
         {showTags && <nav className="tag-nav grouped-tags">{tagGroups.map(group=><details key={group}><summary>{group}<span>{tags.filter(t=>(t.category || tagCategory(t.name))===group).length}</span></summary>{tags.filter(t=>(t.category || tagCategory(t.name))===group).map(tag=><NavItem key={tag.id} icon={<TagIcon size={14} style={{color:tag.color}}/>} label={tag.name} count={tag.count||0} selected={activeSidebar('tag',tag.id)} onClick={()=>chooseSelection({kind:'tag',id:tag.id})}/>)}{!tags.some(t=>(t.category || tagCategory(t.name))===group)&&<small>No tags yet</small>}</details>)}</nav>}
       </div>
-      <div className="sidebar-footer"><span className="connection-dot"/><span>Local workspace</span><IconButton label="Storage and connector information" onClick={() => setModal('about')}><ShieldCheck size={16}/></IconButton></div>
+      <div className="sidebar-footer"><span className="connection-dot"/><span>Local workspace</span><IconButton label="Storage and connector information" onClick={openAbout}><ShieldCheck size={16}/></IconButton></div>
     </aside>
 
     <main className="main-pane">
@@ -579,14 +582,13 @@ export default function App() {
         <div className="list-header-actions">
           {selection.kind === 'tag' && !selection.id.startsWith('quarter:') && <select aria-label="Tag group" value={bootstrap.tags.find(tag => tag.id === selection.id)?.category || tagCategory(title || '')} onChange={event => void changeTagGroup(selection.id, event.target.value)}>{tagGroups.map(group => <option key={group} value={group}>{group}</option>)}</select>}
           {((selection.kind === 'tag' && !selection.id.startsWith('quarter:')) || (selection.kind === 'list' && !permanentListTypes[title || ''])) && <IconButton label={selection.kind === 'list' ? 'Delete list' : 'Delete tag'} onClick={deleteSelection}><Trash2 size={17}/></IconButton>}
-          <div className="header-ticket-stack" aria-label="List actions">
-            <button type="button" className="header-action-button" aria-label="Add card" title="Add card" onClick={openCreate}><Plus size={20}/></button>
-            <button type="button" className="header-action-button" aria-label="List import" title="List import" onClick={() => void openListAction('listImport')}><Download size={19}/></button>
-            <button type="button" className="header-action-button" aria-label="List export" title="List export" onClick={() => void openListAction('listExport')}><Upload size={19}/></button>
-          </div>
         </div>
       </div>
-      <div className="flag-filters" aria-label="Flag filters">{workFlags.map(({ key, label, Icon }) => <button key={key} className={`signal-button ${key} ${activeSidebar('view', key) ? 'selected' : ''}`} aria-label={`${label}: ${bootstrap.stats[key]}`} title={label} aria-pressed={activeSidebar('view', key)} onClick={() => chooseSelection({ kind: 'view', id: key })}><Icon size={16}/>{bootstrap.stats[key] > 0 && <b className="signal-count">{bootstrap.stats[key]}</b>}</button>)}</div>
+      <div className="list-controls-row"><div className="flag-filters" aria-label="Flag filters">{workFlags.map(({ key, label, Icon }) => <button key={key} className={`signal-button ${key} ${activeSidebar('view', key) ? 'selected' : ''}`} aria-label={`${label}: ${bootstrap.stats[key]}`} title={label} aria-pressed={activeSidebar('view', key)} onClick={() => chooseSelection({ kind: 'view', id: key })}><Icon size={16}/>{bootstrap.stats[key] > 0 && <b className="signal-count">{bootstrap.stats[key]}</b>}</button>)}</div><div className="header-ticket-stack" aria-label="List actions">
+        <button type="button" className="header-action-button" aria-label="Add card" title="Add card" onClick={openCreate}><Plus size={16}/></button>
+        <button type="button" className="header-action-button" aria-label="List import" title="List import" onClick={() => void openListAction('listImport')}><Download size={16}/></button>
+        <button type="button" className="header-action-button" aria-label="List export" title="List export" onClick={() => void openListAction('listExport')}><Upload size={16}/></button>
+      </div></div>
       <div className="list-toolbar"><span className="cards-count">{loading ? 'Loading…' : `${total.toLocaleString('en-GB')} ${pluralCards(total)}`}</span><button className={`card-filter-toggle ${priorityFilter !== '' || stageFilter ? 'active' : ''}`} aria-label="Filter cards" aria-expanded={showCardFilters} onClick={() => setShowCardFilters(!showCardFilters)} title="Priority and project stage"><SlidersHorizontal size={14}/>{(priorityFilter !== '' || stageFilter) && <b>{Number(priorityFilter !== '') + Number(Boolean(stageFilter))}</b>}</button><div className="toolbar-controls"><ArrowDownWideNarrow size={16}/><select aria-label="Sort cards" value={sort} onChange={e => setSort(e.target.value)}><option value="contact">Last contact</option><option value="priority">Priority: high first</option><option value="updated">Recently updated</option><option value="title">Name A–Z</option><option value="titleDesc">Name Z–A</option></select><ChevronDown size={13}/></div></div>
       {showCardFilters && <div className="card-filter-panel"><label>Priority<select aria-label="Filter by priority" value={priorityFilter} onChange={event => setPriorityFilter(event.target.value)}><option value="">Any priority</option>{priorityLabels.map((label,value) => <option value={value} key={value}>{label}</option>)}</select></label><label>Stage<select aria-label="Filter by project stage" value={stageFilter} onChange={event => setStageFilter(event.target.value)}><option value="">Any step</option>{statuses.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label><button className="text-button" onClick={() => {setPriorityFilter('');setStageFilter('');}}>Clear filters</button></div>}
       <div className="cards-scroll" aria-busy={loading}>
@@ -681,7 +683,7 @@ export default function App() {
     {modal === 'archive' && selected && <Modal title="Move to archive?" onClose={() => setModal(null)}><p>Card «{selected.title}» will remain in the local database. It can be restored through the connector.</p>{dirty && <p className="error-message">Unsaved card changes will be discarded.</p>}<div className="modal-actions"><button className="secondary-button" onClick={() => setModal(null)}>Cancel</button><button className="primary-button" onClick={archiveCard}>Archive</button></div></Modal>}
     {modal === 'card' && <CreateCardModal lists={bootstrap.lists} initialList={selection.kind === 'list' ? selection.id : bootstrap.lists[0]?.id || ''} token={bootstrap.csrfToken} onClose={() => setModal(null)} onCreated={card => { setModal(null); setSelection({ kind: 'list', id: card.listId }); setSearch(''); setRefreshKey(k => k + 1); loadBootstrap().catch(() => {}); openCard(card, true); setToast('New card created'); }}/>}
     {(modal === 'list' || modal === 'tag') && <CreateLabelModal kind={modal} token={bootstrap.csrfToken} onClose={() => setModal(null)} onCreated={item => { const kind = modal; setModal(null); loadBootstrap().catch(() => {}); setToast(kind === 'list' ? 'List created' : 'Tag created'); if (kind === 'list') chooseSelection({ kind: 'list', id: item.id }); else if (draft) updateDraft('tagIds', [...draft.tagIds, item.id]); }}/>}
-    {modal === 'about' && <Modal title="About Leader" onClose={() => setModal(null)} className="about-modal"><div className="about-brand"><div className="about-logo"><LeaderLogo /></div><div><strong>Leader<span>.</span></strong><p>{motto}</p></div></div><dl className="about-version"><dt>Version</dt><dd>0.2.0 · local prototype</dd><dt>Concept and product</dt><dd>Based on your requirements</dd><dt>Development</dt><dd>With OpenAI Codex</dd></dl><div className="about-info"><Database size={21}/><div><h3>{bootstrap.company.name}</h3><p>Each connected company has a separate database of cards, lists, tags, and history.</p></div></div>{bootstrap.demo && <div className="demo-notice">Demo companies and contacts are fictional.</div>}<button className="primary-button about-close" onClick={() => setModal(null)}>Close</button></Modal>}
+    {modal === 'about' && <Modal title="About Leader" onClose={() => setModal(null)} className="about-modal"><div className="about-summary"><div className="about-details"><div className="about-brand"><div className="about-logo"><LeaderLogo /></div><div><strong>Leader<span>.</span></strong><p>{motto}</p></div></div><dl className="about-version"><dt>Version</dt><dd>{appVersion}</dd><dt>Concept and Product</dt><dd>Benjamin Pinkas</dd><dt>Development</dt><dd>With OpenAI Codex</dd></dl></div><div className="about-token" aria-hidden="true"><GameTokenArt id={aboutTokenId} large/></div></div><p className="about-purpose">A local workspace for researching companies and leads, managing contacts, and tracking follow-up - for business development, sales, partnerships, or job searching.</p><a className="manual-link" href="/Leader-User-Manual.pdf" target="_blank" rel="noopener noreferrer"><Download size={17}/>Open user manual (PDF)</a>{bootstrap.demo && <div className="demo-notice">Demo companies and contacts are fictional.</div>}<button className="primary-button about-close" onClick={() => setModal(null)}>Close</button></Modal>}
     {toast && <div className="toast" role="status"><Check size={16}/><span>{toast}</span><IconButton label="Dismiss notification" onClick={() => setToast('')}><X size={14}/></IconButton></div>}
   </div>;
 }
@@ -743,9 +745,9 @@ function TuxIcon({size=16}:{size?:number}) {
     <circle cx="10" cy="5" r=".6" fill="currentColor" stroke="none"/><circle cx="14" cy="5" r=".6" fill="currentColor" stroke="none"/>
   </svg>;
 }
-function LeaderLogo({monochrome=false}:{monochrome?:boolean}) {
-  if(monochrome) return <svg className="leader-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M8 2v3m4-3v3m4-3v3M8 19v3m4-3v3m4-3v3M2 8h3m-3 4h3m-3 4h3M19 8h3m-3 4h3m-3 4h3M9 9v7h7"/><circle cx="15.5" cy="9" r=".8" fill="currentColor" stroke="none"/></svg>;
-  return <img className="leader-logo" src="/leader-chip.svg?v=mono-three" alt="" aria-hidden="true"/>; }
+function LeaderLogo() {
+  return <img className="leader-logo" src="/leader-logo.png" alt="" aria-hidden="true" draggable={false}/>;
+}
 function pluralCards(count: number) { return count === 1 ? 'card' : 'cards'; }
 function NavItem({ icon, label, count, selected, onClick }: { icon: ReactNode; label: string; count: number; selected: boolean; onClick: () => void }) {
   return <button className={`nav-item ${selected ? 'selected' : ''}`} onClick={onClick} title={label} aria-current={selected ? 'page' : undefined}>{icon}<span>{label}</span><span className="nav-count">{count > 0 ? count.toLocaleString('en-GB') : ''}</span></button>;

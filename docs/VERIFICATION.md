@@ -1,70 +1,38 @@
-# Prototype verification
+# Leader 1.0.0 verification
 
-Verified locally on Windows on 2026-10-01, using Node.js 24 and the Codex in-app browser.
+Verified locally on Windows on 4 October 2026, using Node.js 24.19.0 and the Codex in-app browser. All test data was fictional and isolated from customer databases.
 
 ## Automated checks
 
-- Production TypeScript check and Vite bundle: passed.
-- Thirteen Node tests cover seed idempotency, persistence, ordered tags and quarter colors, input validation, transaction rollback, stale revision rejection, Unicode search, pagination, reversible archive, HTTP security, company isolation and portable export/import, independent flags, and the actual MCP SDK transport.
-- A disposable SQLite database with 10,025 cards in one list passed count, deep pagination, search and reopen/persistence checks. One measured run: insert 22,122 ms, read a deep 200-card page 46 ms, text search 270 ms. These are observations on one machine, not performance guarantees or a browser stress test.
-- MCP tests spawn the real stdio server, discover nine tools in legacy single-database mode, exercise reads and writes and verify shared persistence using another database connection. Multi-company mode adds four company tools and requires companyId for scoped operations; tests verify isolation and export/import. This does not establish installation in a desktop host.
+| Check | Result |
+| --- | --- |
+| TypeScript and production Vite build | Passed |
+| Service, HTTP, backup, migration and transfer tests | 38 passed |
+| Actual stdio MCP SDK integration | 2 passed after the package-version import was corrected |
+| Package and both plugin versions | Aligned at 1.0.0 |
+| Plugin presentation metadata | Matching; short description within 30 characters; default prompt preserved |
+| Bundled manual route | HTTP 200 with application/pdf |
+| PDF inspection | Twenty pages rendered and visually inspected; clickable contents, English text, six screenshots and all sixty illustrated personalities checked |
+
+The 40 tests cover transactional rollback, stale revisions, persistence, migrations, contacts and participant snapshots, flag/list events, account relationships, permanent-list rules, tag groups, future quarter tags, import modes/privacy choices, backup retention, company disconnect/reconnect, filtered geography and real MCP transport. A disposable 10,025-card fixture verified counts, deep pagination, text search and durability. These checks establish behavior on this machine, not a cross-platform benchmark.
 
 ## Browser checks
 
-Created a temporary fictional card; edited country and contact; set last-contact date using the native date field; added a custom tag, checklist item and history note. Verified saved fields and history after page reload. Quarter tag is displayed first. No real customer or mail data used.
+A disposable two-card workspace served the production build at port 4178. The permanent six-list order and English labels were visible. Add card, List import and List export measured 28 x 28 CSS pixels, matching all five flag filters; all eight shared the same top coordinate in one row. The normal 1280 x 720 viewport and compact 1024 x 576 viewport had no horizontal overflow. The motto remained visible in the compact-height rule that previously hid it when zoom reduced the available CSS viewport.
 
-Company/flag update: in an isolated data directory, verified Save Changes? / Cancel (retain draft), No (discard), Yes (save and leave); enabled two flags with comments, verified their independent filtered lists, then cleared them through checkboxes and Save. Switched between empty Clab and BrothersInArms databases and verified isolation after creating a fictional Clab card. Exported Clab through the browser, selected the downloaded JSON with the file chooser, and imported it as Clab (import); the copied card appeared in the new database. The browser download event timed out, but the file was saved successfully and its subsequent import completed.
+The woodland preview on port 4180 uses a temporary database with twelve animal-run companies purchasing nuts, vegetables and fruit. Every permanent list contains examples. Acorn & Co. has three contacts, including one with an empty unknown role, and two dated discussions linked to participants. Seeding was tested for persistence and idempotence. Screenshots show the overview, card, contacts, history, export choices and Mascot gallery; no customer data appears in documentation.
 
-The main database was backed up before the additive migration. Existing 13 demo/user-edited cards remain present. Clab and BrothersInArms start empty; the mail draft package has not been imported. The updated interface screenshot is saved locally under ignored test-results/leader-interface.jpg.
+About displayed version 1.0.0, Concept and Product: Benjamin Pinkas, a random finished piece and the local PDF link; no current-database block. The piece measured 225 x 246 CSS pixels and occupied its own column beside the product information. Opening About again chose another piece. The supplied transparent white chip image appears in the rail, loading screen, About and favicon. The rail button measured 44 x 44 pixels, its logo 36 x 36, and its horizontal center matched the 38 x 38 neighboring controls. The settings label is Leader's motto. Gallery hold behavior was not changed. See the [fictional desktop interface](screenshots/manual-overview.jpg).
 
-Compact UI follow-up: TypeScript and production bundle passed. Browser verification confirmed three round flag checkboxes in one horizontal row, independent toggles, comments visible only while active, and preservation of a comment when toggled off/on. Test edits were discarded with No; the existing card remained at version 8. Chip logo and favicon updated. Screenshot: test-results/leader-compact-chip.jpg.
+The manual link targets the bundled file directly with no remote viewer. Its route and PDF contents were verified independently; rendering belongs to the user's browser/PDF handler. The source PDF and served production copy are identical. The manual describes implemented features, uses the current supplied logo, and presents game-piece strengths and luck as fictional stories.
 
-## Known boundaries
+## Boundaries
 
-- Desktop browser prototype, not a packaged Windows installer.
-- No real-time push: refresh the page after external MCP changes.
-- Archive has no browse/restore UI yet; restore by known ID through MCP.
-- There is no automated backup job. Preserve the SQLite file with an appropriate SQLite backup procedure before real-data migration.
-- No calendar/reminders, attachments, cloud sync, multi-user access or TickTick/email import.
-- Plugin manifests and SDK integration are included; host installation remains a separate step.
-- Source and documentation are published to the private Ben-Pin/Leader repository. Client databases remain local and are not part of that source backup.
+- Linux/ARM64 and macOS have not been verified on physical machines for this release.
+- The suite tests the MCP protocol, not actual installation into a desktop host or cloud ChatGPT.
+- No live push; refresh after external edits. Archive restore is by known ID through API/MCP.
+- Standard multi-company HTTP schedules local backups; single-database mode and standalone MCP do not.
+- No built-in PST/mail importer, outgoing email, reminders, attachments or cloud sync. Wisdom has no connected content source; figure relighting remains a study.
+- Private databases, correspondence and audit reports remain excluded from Git.
 
-Run `pnpm test` and `pnpm build` to repeat automated verification. Tests create and remove only their own temporary databases.
-
-
-## Globe and monochrome navigation — 2026-10-02
-
-Production build and all 20 service, HTTP and MCP tests pass. Geography tests compare full-result aggregates against list, flag, star, tag, quarter, search, country and relationship filters, including intersections, empty results, archived cards and duplicate primary/secondary countries. The 10,025-card test verifies geography is independent of pagination.
-
-Browser QA used a disposable two-card fixture, not customer data. Verified global search, active-flag filtering, country-directory scope, an empty search result, and the expanded globe. Selecting Japan moved its marker to the projection center; an intermediate screenshot showed the transition in progress. The main rail has consistent monochrome icons and logo, neutral glass shading and a visible selected state.
-
-Rotation uses eased requestAnimationFrame updates (650–1100 ms) and memoized dot geometry. Reduced-motion behavior and stale-request handling are implemented; no automated frame-rate or assistive-technology benchmark was performed.
-
-## Five attention flags — 2026-10-02
-
-Production build and all 21 automated tests pass, including a v5-to-v6 SQLite migration fixture, persistence after restart, unchanged legacy flag comments/dates/revisions, independent SW/HW filters and counts, geography, portable export/import and real MCP calls. Browser QA on a disposable company saved both new flag comments and verified the two filtered lists and matching globe. The original blue rail background is restored; the monochrome glass-style icons are retained. Local SQLite backups were created and checked before updating the working databases.
-
-
-## Wider detail card — 2026-10-02
-
-TypeScript check and production build pass. Browser QA verified the exact desktop redistribution: at 1575px, the list changes from 837px to 558px and details from 430px to 709px; at 1280px the new widths are approximately 411px and 587px. At 1100px neither pane overflows horizontally, and at 375px the detail card fills the screen with its five flags and Save accessible. In the isolated fixture, a long title grows to three lines, a twelve-line description grows to 557px without an internal scrollbar and shrinks to 64px for a short note, and a six-line draft history note grows to 154px. The working preview was refreshed without unsaved edits and reports no browser console errors. No database or service logic changed.
-
-
-## Paired fields and multiple contacts — 2026-10-02
-
-Production TypeScript/build and all 23 service, HTTP and MCP tests pass, including 10,025-card pagination. New tests cover migration from schema v6, unchanged revisions/timestamps, idempotent reopen, multiple-contact search (Unicode and literal wildcards), geography, validation rollback, stale versions, removal and primary-contact mirroring, legacy writes, export/import and old bundles. Real MCP tests create multiple contacts and search by the second email. Browser QA saved two fictional contacts and retained their names/roles/emails after reload, removed one without losing the other, and found the card by the remaining email. Desktop fields use two columns and contacts use name/role/email; at 375px there is no horizontal overflow. Four SQLite backups passed quick_check before updating the working server.
-
-
-## Contact tab, statuses and history participants — 2026-10-02
-
-Build and all 25 tests pass. Added coverage for all six statuses, invalid status rejection, missing/empty/foreign history participants, atomic rollback, multiple participants, preserved attribution after removal, export/import and v7 migration with old unlinked history. HTTP and actual MCP tests submit participant IDs. A read-only comparison against the pre-migration backup found all previous scalar fields in 212 working cards and all 3 existing history records unchanged.
-
-Browser QA confirmed Card / Contacts / History order, all six core properties, scroll reset to the top on returning to Card, default active status and saved main status, blocked note submission without participants, and a saved note displaying its participant. Contacts show name / role / email / status in one row with 32px fields at desktop and 375px widths. Logo artwork is 33.8px and globe artwork scales by 1.2; column widths are unchanged. The sidebar clips horizontal overflow from the globe halo. The working tab had an unsaved draft, so it was preserved while an updated preview was opened separately.
-
-## Six-list funnel, project stages and user preferences — 2026-10-04
-
-Production TypeScript/build and all 40 automated tests pass with sequential test execution. Coverage includes schema v12 migration, preserved card IDs/revisions/contacts/flags/relationships/history, five independent project stages, priority filters/sorting/geography, intermediate list transitions, stale-write rollback, HTTP/MCP operations and 10,025-card pagination.
-
-Local exports were saved before migration. A read-only comparison retained every card ID and unchanged-version field in Demo and Clab; two actively edited Clab revisions were excluded from the field comparison. No backup was restored over user edits.
-
-Disposable browser QA verified six permanent lists in spectrum order, list visibility settings, custom square-map persistence after reload, the compact list header, import/down and export/up icons, and Priority beside the star with Stage beneath the contact date. The gallery opens Mascot, includes Einstein and the ten new batch-six PNGs, and reveals fully decoded batches from the top. All 60 finished piece files have RGBA PNG output; source sheets and generation conventions are recorded in GAME_PIECES_BATCHES.md. The square workspace map uses 70% opacity.
+Repeat with `pnpm build` and `node --test --test-concurrency=1 tests/*.test.mjs`. Tests create only disposable databases.

@@ -1,24 +1,30 @@
 {
   "name": "leader",
-  "version": "0.1.0",
-  "description": "Local lead cards, lists and color tags backed by the same SQLite data as the Leader browser app.",
-  "author": { "name": "Leader" },
+  "version": "1.0.0",
+  "description": "Local company and contact workspace for BD, sales, partnerships and job searching.",
+  "author": {
+    "name": "Leader"
+  },
   "mcpServers": {
     "leader": {
       "type": "stdio",
       "command": "node",
-      "args": ["${PLUGIN_ROOT}/server/mcp.mjs"],
+      "args": [
+        "${PLUGIN_ROOT}/server/mcp.mjs"
+      ],
       "cwd": "${PLUGIN_ROOT}"
     }
   },
   "interface": {
     "displayName": "Leader",
-    "shortDescription": "Local lead cards and tags",
-    "longDescription": "Search and manage local client cards, lists, tags and contact history. Writes use revision checks and share data with the Leader browser interface.",
+    "shortDescription": "Company and contact workspace",
+    "longDescription": "Organize local company cards, contacts, relationship lists, project stages, priorities and discussion history. Use separate SQLite databases for BD, sales, partnerships or job searching. The MCP connector shares the browser service and checks card revisions before writes.",
     "developerName": "Leader",
     "category": "Productivity",
-    "capabilities": ["Write"],
-    "brandColor": "#4772FA",
+    "capabilities": [
+      "Write"
+    ],
+    "brandColor": "#405ba5",
     "defaultPrompt": "Покажи карточки Leader и последние контакты."
   }
 }

@@ -1,53 +1,49 @@
-# Product brief — Leader prototype
+# Leader product
 
-## User intent
+Leader 1.0.0 is a single-user local workspace for company databases, contacts and relationships, including BD, sales, partnerships and job searching. The English browser UI and optional MCP connector share the same validated SQLite service. This document describes implemented behavior; [the user manual](USER_MANUAL.md) explains operation.
 
-An independent local client-card application for Windows, usable in a browser, visually and behaviorally close to TickTick. It must avoid small list limits (target: 10,000 cards in one list) and expose a connector that lets an assistant perform the same card/list/tag operations as the user interface.
+## Account organization
 
-## Prototype
+Each connected company has independent cards, lists, tags, contacts and History. A fresh checkout provides fictional Demo data and empty additional workspaces. Real customer databases are supplied separately and are never part of source control.
 
-- Three-pane layout: icon rail and lists/tags, task-style card list, editable details. On desktop the middle list uses two thirds of its former width; the released space goes to the detail card. Details use a 28px heading, 14px body/inputs and 12px labels. Titles, descriptions and draft notes grow with their text; short descriptions keep a compact two-line minimum. Tablet details widen to 560px where space permits; phone details fill the screen.
-- English UI. Blue accent, pale sidebar, white work area, fine separators, compact row typography.
-- Several fictional companies with country, contact, description, checklist, and contact history.
-- Create/edit/search/move cards; star, priority and lead stage. Company names are never struck through as completed tasks.
-- Branding: Leader, with the default motto `of the lead-free world`, editable in User settings. Following the user's sketch, a blue L forms the left and bottom edges of a pinned chip; a glowing yellow sun-dot sits at the upper right and shines toward the L. One shared SVG is used throughout the UI and as the favicon.
-- A small three-dimensional pewter Tux playing-token mascot sits to the right of Leader in the sidebar heading. The transparent PNG is stored locally; company management remains available beside the company selector.
-- Connected company databases: Demo, Clab (mail-derived clients), BrothersInArms. Each has independent cards, lists, tags and history; switch in the sidebar. Full JSON export and import as a new company.
-- Independent flags: green `$` In quote (awaiting a reply to pricing), yellow Logistics issue, red Administrative issue, blue Tux SW issue, gray wrench HW issue. Compact circular controls sit in one horizontal row, without visible text labels (names remain in tooltips and accessibility labels). Each control acts as a checkbox: click to enable or clear; changes save when the card loses focus or closes. Active flags show a 300-character single-line comment; clearing hides but preserves the comment. List filters use matching round controls with nonzero count badges.
-- In work contains cards with at least one active flag. Each flag has a top filter/list; multiple flags put a card in multiple lists. Original custom-list membership is retained.
-- Card changes save automatically on exit, focus loss, or company switch. Undo discards current unsaved edits and closes the card. Ctrl+S saves. Browser-tab closing retains the browser's native unsaved-changes warning while saving is pending.
-- Card header contains Undo, the five round attention flags and Close. Star and archive buttons are removed from this header; the flag row is not duplicated in the card body. Active-flag comments remain below the header.
-- Create lists and color tags. Filter by list and tag; sort by recent contact or title.
-- Three compact glass buttons above the card list add a card and import/export a `leader-list` JSON file. Export covers every page of the current list/filter/search result and offers independent switches for “About customer” and conversation history; both are included by default. Export filenames end with the local `ddmmhh-hhmm` timestamp. Browsers exposing `showSaveFilePicker` ask for a destination with Documents as the initial folder; other browsers use their configured download location. Import atomically skips existing card IDs and either places cards in the six permanent lists by each card's category or assigns the category of a chosen permanent list. New imports show `Imported` until their first saved edit. Wisdom moves to User settings; its insertion pipeline remains empty until a content source is supplied. Buttons and list cards have a restrained hover glow, disabled under reduced-motion preferences.
-- Permanent lists: Leads → Prospects → Opportunities → Customers → Partners → Agents. Hash colors follow the spectrum from infrared toward ultraviolet: red, orange, yellow, green, blue, violet. All six are protected from deletion. Existing Distributors becomes Agents while preserving IDs and links. User settings can hide individual lists from the sidebar without deleting data. Every saved move records its date and source/destination in History, including intermediate draft moves; Undo discards unsaved moves.
-- Five independent project stages: Contact → Evaluation → Ramp Up → Production → Legacy. Stage changes do not move cards between lists. Stage and priority can filter the current result; the globe and export follow these filters. Priority sorting puts High first. Low/Medium/High cards show a blue/amber/red left accent and a labeled flag beside the star. Stage stays on the right under the contact date; the quarter tag stays first on the left. Compact central-column heading, search, actions, flag filters and sorting leave more room for cards.
-- The User button opens local browser settings for name, motto, Wisdom, visible permanent lists, and background map. A custom PNG/JPEG/WebP map must be square (1:1), no more than 8192 pixels and 20 MB. It replaces the built-in steampunk map in the empty card area without cropping/stretching. Maps are 30% transparent and can be disabled. The old antique map asset is removed.
-- Every saved on/off transition of one of the five attention flags adds a dated History event with the flag comment. Multiple toggles before saving are retained; Undo discards unsaved transitions. Changing a flag still updates the last-contact date.
-- Derive YYYY-Q tag from last contact. Display it first. 2026 bright green, 2025 muted green, 2024 amber, 2023 and older red.
-- Persist data in local SQLite. Refreshing or restarting must preserve edits. Verified JSON snapshots of each connected company are made at startup and every six hours, retaining 28 per company under `data/backups/`.
-- Use pagination; no application-level cap of 100/500 cards per list.
-- MCP tools to list/search/read/create/update cards and manage lists/tags, backed by the same service.
+Six permanent lists appear in spectrum order: **Leads, Prospects, Opportunities, Customers, Partners, Agents**. List and account category stay synchronized. Lists cannot be deleted, but can be hidden in User settings. Existing Distributors is renamed to Agents while retaining IDs and relationships. Saved moves record source, destination and timestamp in History. Custom lists remain available; only empty custom lists can be deleted.
 
-## Explicit boundaries
+Stage is a separate project axis: **Contact, Evaluation, Ramp Up, Production, Legacy**. Stage does not move cards. Priority has four values: unset, Low, Medium, High; it supports filtering, sorting and a visible label next to the star. Stage remains on the right beneath Last contact. Important is the independent starred view.
 
-Prototype is single-user on loopback. Cloud synchronization, multi-user permissions, mobile apps, email sending, recurring reminders, file attachments and an exact reproduction of every TickTick feature are later work. Existing JSON is an eventual migration input, not automatically imported during demo.
+## Cards and contacts
 
-## Definition of success
+The compact three-pane interface includes an icon rail, lists/tags and globe, a paginated card list, and wider details. Details have **Card, Contacts, History** tabs. Core properties are paired; descriptions grow with content. The UI remains usable on narrow screens through navigation/detail panels.
 
-The user opens Leader in a Windows browser, sees a polished populated interface, edits and creates a card, refreshes and retains changes. MCP can discover tools, read cards and create/update a test card. The private GitHub repository contains source and architecture documents, with a separate prototype branch.
+Cards contain a readable name, primary/secondary country, Last contact, Next step date, About customer, checklist, agent/partner links, five flags, Stage and Priority. Repeatable contact rows contain name, Position, email and one of **active, main, inactive, disturbing, useful, decisions**. New contacts default to active. Unknown roles stay blank. Up to 100 contacts are supported.
 
-## Globe and navigation
+Discussion notes require at least one existing contact on the card and retain participant snapshots. Older unlinked history remains readable. Notes save immediately through Add note; their creation timestamp is not an inferred historical correspondence date.
 
-The sidebar globe follows the current list, flag/tag filter and global search. Aggregates include every matching card, independently of list pagination; a card with two distinct countries contributes once to each country. Country buttons and map markers open the matching country directory with the same filters. Unknown or missing countries cannot be plotted. Markers represent country-level counts, not office coordinates.
+Card fields autosave on leaving/closing the card, switching database or browser focus loss. Ctrl/Cmd+S saves explicitly. Undo discards the unsaved draft and closes; it is not a rollback of previously saved edits. Errors preserve the draft and stale revisions are rejected.
 
-The globe has no visible captions and uses its full sidebar width. Selecting a card or country rotates along the shortest great-circle route with eased motion (650–1100 ms); dragging interrupts the transition. Reduced-motion preferences disable automatic animation. The left icon rail uses a single silver stroke style, including the chip logo, on the original blue (#405ba5) background, with glass shading and an inset selected state.
+## Attention and activity
 
-Geography data: Natural Earth, distributed via `world-atlas` and `topojson-client`.
+Independent flags: **In quote** (green dollar), **Logistics issue** (yellow truck), **Administrative issue** (red warning), **SW issue** (blue Tux), **HW issue** (gray wrench). Active flags show a single-line comment, maximum 300 characters. Clearing preserves the comment. Each saved enable/disable produces dated History; multiple draft transitions are retained. A UI toggle also sets Last contact to today's local date. In work means any active flag.
 
+Last contact derives a first-position **YYYY-Q** tag, including future years such as 2027-1. Auto-tag synchronizes quarter metadata across dated cards in the selected company. Exact dates are never fabricated from an unknown day; a fallback quarter is supported by the service.
 
-## Contact rows
+## Search and geography
 
-Core card properties are paired: country/second country, stage/priority, last contact/next step. Tabs are ordered Card, Contacts, History. Contacts has repeatable single-line name, role/job description, email and status columns (12px text, 32px fields). Add/remove rows; changes save when the card is left, while Undo discards them. Up to 100 contacts per card. Empty rows are omitted on save. Names, roles and emails from all contacts participate in global search and filtered geography. Contacts retain all four columns on phones with 11px text; basic properties remain paired. Existing single contacts are retained automatically.
+Text search covers the entire selected company rather than the current sidebar list, tag or flag view. Stage and Priority filters still apply. Search includes names, countries, contact names/roles/emails, description, flag comments and custom tag names; it excludes History-note and checklist text. Sorting supports contact date, Priority, update time and name.
 
+The globe and country directory use the list's effective query across all pages. Primary and secondary distinct countries both count. Points spread across the country are visual positions, not office geocodes. Unknown/unrecognized countries cannot be plotted. Selecting a country/card triggers eased rotation; dragging interrupts it. Reduced-motion preferences reduce animation. Geography uses Natural Earth through world-atlas/topojson-client.
 
-Contact status: active (default), main, inactive (left the company), disturbing, useful, decisions. New history entries require at least one selected contact from the card. Each entry retains its participants even after contact changes/removal; pre-existing entries remain visibly marked as legacy unlinked history. Switching detail tabs or opening another card resets the detail scroll so country, stage, priority and dates remain discoverable at the top. The rail logo grows from 26px to 33.8px (+30%) inside a 46px button; the sidebar globe artwork scales by 1.2 without widening either column.
+## Transfer and persistence
+
+List export includes every matching page and offers independent About customer/History switches. List import accepts leader-list JSON, skips existing IDs, and either preserves account categories or replaces them with a selected permanent-list category. Imported records are marked until their first saved edit. Available links are restored; unavailable links are reported. Full leader-company JSON transfers/restores a complete database as a new company.
+
+Local SQLite persists across restarts. Standard multi-company startup creates verified JSON backups and repeats every six hours while running, retaining 28 per company. Disconnect preserves database files and permits reconnection. Source control excludes databases, backups, correspondence, private reports and credentials.
+
+## Personal appearance
+
+Blue rail, monochrome icons, translucent surfaces and subtle motion. User settings include display name, the default motto **of the lead-free world**, hidden permanent lists, Wisdom and background map. A custom map must be square PNG/JPEG/WebP, at most 20 MB and 8192 pixels per side; the empty detail area shows it at 70% opacity without distortion.
+
+Sixty finished transparent game pieces are selectable from a gallery opening on Mascot, including Lucky cat and Einstein. Click previews; double-click/Use this piece selects. Holding enlarges the same figure in place with slight wobble; release returns it. These are local PNG assets, not 3D models. Browser preferences/custom maps are separate from database exports.
+
+## Boundaries
+
+Tested desktop environment: Windows with Node.js 24 and a browser. Linux/ARM64 and macOS use the same intended runtime workflow but are not physically verified. Leader is not a packaged desktop installer, multi-user CRM or public hosting service. There is no cloud synchronization, email sending, built-in mail/PST/TickTick importer, reminders or attachments. Wisdom has no content source. Pointer-directed piece lighting remains research. MCP tools are implemented and tested; host installation is not automatic.

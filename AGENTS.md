@@ -1,7 +1,7 @@
 # Leader development rules
 
 - Read docs/PRODUCT.md, docs/ARCHITECTURE.md and docs/API.md before implementation.
-- Keep the UI close to TickTick's three-pane task layout with original Leader branding. Use real working controls, clear Russian text, and compact proportions.
+- Keep the UI close to TickTick's three-pane task layout with original Leader branding. Use real working controls, clear English text, and compact proportions.
 - All UI and MCP writes go through the same service validation and SQLite transaction layer.
 - Never commit mail archives, real client data, databases, secrets, access tokens or machine-specific paths.
 - Keep demo companies fictional and visibly identify demo data.
@@ -10,3 +10,6 @@
 - Main list endpoints are bounded and paginated. Test with 10,000 cards in a temporary database.
 - Document supported behavior and limitations honestly. Run relevant build, service and MCP checks.
 - Prefer soft archive to irreversible deletion. Do not install global services or publish the local app publicly.
+
+- Release baseline: 1.0.0. Increment the minor version for functional additions/changes, patch for fixes/docs, and major for breaking compatibility. Keep package, plugin manifests, UI, MCP and documentation versions aligned.
+- The English PDF manual is bundled under public/ and opened locally from About; update it with user-facing functionality.

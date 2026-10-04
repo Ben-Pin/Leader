@@ -2,7 +2,7 @@
 
 All responses JSON. Errors: `{error: string, code?: string}` with appropriate HTTP status. API prefix `/api`.
 
-`Card`: `{id,listId,title,description,company,country,contactName,email,lastContact,dueDate,status,priority,completed,starred,archived,version,createdAt,updatedAt,tags,checklist,activity}`.
+Leader 1.0.0. `Card`: `{id,listId,title,description,company,country,secondaryCountry,contacts,contactName,email,lastContact,contactQuarter,dueDate,status,priority,completed,starred,archived,importedPending,accountType,distributorIds,distributors,clientCount,flags,version,createdAt,updatedAt,tags,checklist,activity}`.
 
 - `status`: `contact | evaluation | rampUp | massProduction | legacy` (project stage, independent of list/category). `massProduction` is the stable internal key displayed as **Production**.
 - `importedPending`: boolean marker for a list-imported card, cleared by its first saved edit.
@@ -31,10 +31,17 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 - POST `/cards/:id/comments` `{text,version,contactIds}` -> Card.
 - POST `/lists` `{name,color}` -> List.
 - POST `/tags` `{name,color}` -> Tag.
+- PATCH `/tags/:id` `{name?,color?,category?}` -> updated custom tag. Categories: Countries, Time, Product, Stage, Application, Other. Derived quarter tags cannot be edited.
+- DELETE `/tags/:id` `{}` -> removes a custom tag and assignments, not cards.
+- DELETE `/lists/:id` `{}` -> removes an empty custom list; permanent lists are protected.
+- POST `/cards/retag-quarters` `{}` -> synchronization counts; derives contact quarters including future years.
 - GET `/health` -> `{ok:true}`.
 
 Browser writes send `X-Leader-Token: csrfToken`. All scoped requests send `X-Leader-Company: companyId`; this is mandatory for writes. Bootstrap includes `company`, `companies`, and flag counts in stats. `view=active` means at least one active flag; `view=inQuote|logisticsIssue|administrativeIssue|swIssue|hwIssue` selects that flag. The UI no longer uses legacy completion.
 
+- GET `/companies/disconnected` -> retained databases available for reconnect.
+- POST `/companies/:id/disconnect` `{}` -> retains files; protects the last connected company.
+- POST `/companies/:id/reconnect` `{}` -> reconnected company.
 - GET `/companies` -> `{companies:[{id,name}]}`.
 - POST `/companies` `{name}` -> new empty `{id,name}`.
 - GET `/companies/:id/export` -> complete `leader-company` JSON with downloadable filename.
@@ -46,14 +53,24 @@ Normal startup uses the company registry. Explicit `LEADER_DB` or `LEADER_DB_PAT
 
 Export `createStore({path,seed=true})` returning `bootstrap()`, `listCards(query)`, `getCard(id)`, `createCard(input)`, `updateCard(id,input)`, `addComment(id,input)`, `createList(input)`, `createTag(input)`, `close()`.
 
-MCP uses the same operations with schemas, stable IDs, and revision preconditions. Destructive operations are limited to reversible archive.
+MCP uses the same operations with schemas, stable IDs, and revision preconditions. Card deletion is limited to reversible archive; HTTP also removes empty custom lists and custom tags.
 
-In normal multi-company mode MCP adds list_companies, create_company, export_company and import_company; existing scoped tools require companyId. Flags and view filters use the same service validation as the browser.
+Normal multi-company MCP exposes 10 scoped tools and seven company tools; see [the inventory](CONNECTOR.md). Scoped tools require companyId. Flag state changes generate history through the shared service. Updating Last contact on a toggle is browser behavior; an API/MCP caller supplies that date explicitly. Adding a history note does not automatically change Last contact.
 
-- GET `/geography` -> `{countries:[{country,count}],total}`. Accepts the same selection filters as `/cards`: `listId`, `view`, `tag`, `q`, `country`, `accountType`, `distributorId`. Pagination and sorting do not restrict geography totals. The selected company is scoped through `X-Leader-Company`. The country directory uses `/cards` with the original filters plus `country` and bounded pagination.
+- GET `/geography` -> `{countries:[{country,count}],total}`. Accepts the same selection filters as `/cards`: `listId`, `view`, `tag`, `q`, `country`, `accountType`, `distributorId`, `status`, `priority`. Pagination and sorting do not restrict geography totals. The selected company is scoped through `X-Leader-Company`. The country directory uses `/cards` with the original filters plus `country` and bounded pagination.
 
 
 `contacts`: ordered array of `{id,name,role,email,status}` (maximum 100). IDs are optional on input and generated when omitted; name <=300, role <=500, email <=320 characters. Each nonempty email is validated. Empty rows are omitted. Providing contacts replaces the complete collection; omitting it preserves contacts. Legacy `contactName`/`email` remain first-contact mirrors: legacy patches update only the first contact and retain its role and other contacts. If both formats are supplied, contacts takes precedence. All changes use the card revision and shared HTTP/MCP service; portable export/import includes contacts and accepts older single-contact packages.
 
 
 Contact status accepts `active | main | inactive | disturbing | useful | decisions`, default active. `add_comment` / POST comments requires 1–100 contact IDs belonging to that card; missing/empty/foreign IDs are rejected without mutation. Activity contacts are snapshots of the selected contact records, preserving attribution after edits or removal. Old history imports may omit contacts; they remain unlinked rather than inventing participants.
+
+## Portable formats and local files
+
+`leader-company` version 1 contains full cards, lists, tags and history including archived cards; import permits 100,000 cards within the 128 MB request limit and creates a new database. `leader-list` version 1 contains exported cards and metadata; import permits 10,000 cards and skips existing IDs. List export can exclude history and/or description from the copy; current flags/comments remain included. Appearance preferences/custom maps are not in either format.
+
+List export is assembled by the browser from every matching page; there is no dedicated list-export route. Read pages are bounded to 200 records. Browser text search switches to all-cards scope while retaining Stage/Priority filters; the query API combines supplied filters.
+
+HTTP mutations require exact same-origin `Origin`, bootstrap `X-Leader-Token` and JSON content type. Scoped writes additionally require `X-Leader-Company`. Loopback binding and Host checks do not make this a public multi-user service.
+
+The built UI serves `/Leader-User-Manual.pdf` as a local static asset. About opens it directly without a third-party viewer.

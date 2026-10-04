@@ -1,9 +1,9 @@
 {
   "name": "leader",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Local lead management with a browser UI and MCP connector",
+  "description": "Local company and contact workspace for BD, sales, partnerships and job searching.",
   "engines": {
     "node": ">=24.0.0"
   },

@@ -188,10 +188,17 @@ button.signal-button:active{transform:translateY(1px)}
 .main-pane .list-heading h1 { font-size: 23px; line-height: 1.15; }
 .main-pane .list-heading .eyebrow { margin-bottom: 4px; }
 .main-pane .list-heading p { margin: 5px 0 0; }
-.main-pane .header-ticket-stack { gap: 6px; }
-.main-pane .header-action-button { width: 35px; height: 35px; min-height: 35px; }
-.main-pane .flag-filters { padding: 2px 18px 10px; gap: 10px; }
+.main-pane .header-ticket-stack { gap: 4px; }
+.main-pane .header-action-button { width: 28px; height: 28px; min-height: 28px; border-radius: 6px; }
+.main-pane .header-action-button > svg { width: 16px; height: 16px; }
+.main-pane .list-controls-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 12px 10px; }
+.main-pane .list-controls-row .flag-filters { padding: 0; gap: 4px; }
 .main-pane .flag-filters .signal-button { width: 28px; height: 28px; }
 .main-pane .list-toolbar { height: 34px; padding: 0 18px; gap: 6px; }
 .main-pane .card-group-heading { padding: 10px 10px 6px; }
 .row-top-state { display: inline-flex; align-items: center; gap: 5px; min-height: 16px; }
+
+.about-purpose { color: #647591; font-size: 12px; line-height: 1.65; }
+.manual-link { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 18px 0; padding: 12px; border: 1px solid #bdcdeb; border-radius: 8px; background: #edf3ff; color: #345aa4; font-size: 13px; font-weight: 600; text-decoration: none; }
+.manual-link:hover { background: #dfeaff; }
+.manual-link:focus-visible { outline: 2px solid #405ba5; outline-offset: 3px; }
