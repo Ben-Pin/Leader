@@ -19,6 +19,7 @@ const listByAccountType = { unspecified: ['Prospects', 'Потенциальны
 const tagCategories = new Set(['Countries', 'Time', 'Product', 'Stage', 'Application', 'Other']);
 export const contactStatuses = ['active', 'main', 'inactive', 'disturbing', 'useful', 'decisions'];
 export const flagKeys = ['inQuote', 'logisticsIssue', 'administrativeIssue', 'swIssue', 'hwIssue'];
+const flagLabels = { inQuote: 'In quote', logisticsIssue: 'Logistics issue', administrativeIssue: 'Administrative issue', swIssue: 'SW issue', hwIssue: 'HW issue' };
 const textFields = { title: 300, description: 50000, company: 300, country: 120, secondaryCountry: 120, contactName: 300, email: 320 };
 const writableFields = new Set([...Object.keys(textFields), 'listId', 'lastContact', 'contactQuarter', 'dueDate', 'status', 'priority', 'completed', 'starred', 'archived', 'tagIds', 'checklist', 'contacts', 'flags', 'accountType', 'distributorIds']);
 const requireObject = (value) => {
@@ -111,7 +112,13 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         migrate.run(JSON.stringify(JSON.parse(row.contacts).map(contact => ({...contact, status:contact.status || 'active'}))), row.id);
       }
     }
-    db.exec('PRAGMA user_version=8; COMMIT');
+    if (!db.prepare('PRAGMA table_info(cards)').all().some(c => c.name === 'imported_pending')) {
+      db.exec('ALTER TABLE cards ADD COLUMN imported_pending INTEGER NOT NULL DEFAULT 0 CHECK(imported_pending IN (0,1))');
+    }
+    if (!db.prepare('PRAGMA table_info(activity)').all().some(c => c.name === 'kind')) {
+      db.exec("ALTER TABLE activity ADD COLUMN kind TEXT NOT NULL DEFAULT 'note' CHECK(kind IN ('note','flag'))");
+    }
+    db.exec('PRAGMA user_version=10; COMMIT');
   } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
   const statements = new Map();
   const sql = (query) => {
@@ -145,7 +152,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       distributors: sql('SELECT c.id,c.title,c.country,c.archived FROM card_distributors d JOIN cards c ON c.id=d.distributor_id WHERE d.client_id=? ORDER BY c.title').all(row.id).map(c => ({ ...c, archived: Boolean(c.archived) })),
       clientCount: sql('SELECT COUNT(*) AS n FROM card_distributors d JOIN cards c ON c.id=d.client_id WHERE d.distributor_id=? AND c.archived=0').get(row.id).n,
       lastContact: row.last_contact, contactQuarter: row.contact_quarter, dueDate: row.due_date, status: row.status, priority: row.priority,
-      completed: Boolean(row.completed), starred: Boolean(row.starred), starredAt: row.starred_at, archived: Boolean(row.archived),
+      completed: Boolean(row.completed), starred: Boolean(row.starred), starredAt: row.starred_at, archived: Boolean(row.archived), importedPending: Boolean(row.imported_pending),
       version: row.version, createdAt: row.created_at, updatedAt: row.updated_at,
       tags: quarter ? [quarter, ...tags] : tags,
       flags: Object.fromEntries(flagKeys.map(kind => {
@@ -153,7 +160,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         return [kind, { active: Boolean(flag?.active), comment: flag?.comment || '', activatedAt: flag?.activated_at || null }];
       })),
       checklist: sql('SELECT id,text,done FROM checklist_items WHERE card_id=? ORDER BY position').all(row.id).map(item => ({ ...item, done: Boolean(item.done) })),
-      activity: sql('SELECT id,text,created_at AS createdAt,contacts FROM activity WHERE card_id=? ORDER BY created_at DESC,id DESC').all(row.id).map(entry => ({...entry, contacts:JSON.parse(entry.contacts)})),
+      activity: sql('SELECT id,text,created_at AS createdAt,contacts,kind FROM activity WHERE card_id=? ORDER BY created_at DESC,id DESC').all(row.id).map(entry => ({...entry, contacts:JSON.parse(entry.contacts)})),
     };
   };
   const validate = (input, creating = false) => {
@@ -352,7 +359,27 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         requireObject(input);
         const row = findCard(id);
         checkVersion(row, input.version);
-        const value = validate(input);
+        const { flagEvents, ...cardInput } = input;
+        const value = validate(cardInput);
+        const previousFlags = Object.fromEntries(flagKeys.map(kind => [kind, Boolean(sql('SELECT active FROM card_flags WHERE card_id=? AND kind=?').get(id, kind)?.active)]));
+        const transitions = [];
+        if (flagEvents !== undefined) {
+          if (!Array.isArray(flagEvents) || flagEvents.length > 100) throw new StoreError('Invalid flag history.');
+          const states = { ...previousFlags };
+          for (const event of flagEvents) {
+            requireObject(event);
+            if (!flagKeys.includes(event.kind) || typeof event.active !== 'boolean' || states[event.kind] === event.active) throw new StoreError('Invalid flag transition.');
+            const comment = string(event.comment ?? '', 'flag comment', 300);
+            if (/[\r\n]/.test(comment)) throw new StoreError('Flag comment must be one line.');
+            const happenedAt = string(event.happenedAt, 'flag date', 40, true);
+            if (!/^\d{4}-\d\d-\d\dT/.test(happenedAt) || !Number.isFinite(Date.parse(happenedAt))) throw new StoreError('Invalid flag date.');
+            transitions.push({ kind: event.kind, active: event.active, comment, happenedAt });
+            states[event.kind] = event.active;
+          }
+          for (const kind of flagKeys) if (states[kind] !== (value.flags?.[kind]?.active ?? previousFlags[kind])) throw new StoreError('Flag history does not match the saved flags.');
+        } else if (value.flags) {
+          for (const [kind, flag] of Object.entries(value.flags)) if (flag.active !== previousFlags[kind]) transitions.push({ kind, active: flag.active, comment: flag.comment, happenedAt: new Date().toISOString() });
+        }
         if (value.accountType && value.accountType !== row.account_type) {
           const target = listByAccountType[value.accountType].map(name => sql('SELECT id FROM lists WHERE name=? COLLATE NOCASE').get(name)).find(Boolean);
           if (target) value.listId = target.id;
@@ -360,10 +387,14 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         const entries = Object.entries(value).filter(([key]) => key in columns);
         const clause = entries.map(([key]) => `${columns[key]}=?`);
         const args = entries.map(([, val]) => typeof val === 'boolean' ? Number(val) : val);
-        clause.push('version=version+1', 'updated_at=?');
+        clause.push('version=version+1', 'imported_pending=0', 'updated_at=?');
         sql(`UPDATE cards SET ${clause.join(',')} WHERE id=?`).run(...args, new Date().toISOString(), id);
         if (value.starred === true && !row.starred) sql('UPDATE cards SET starred_at=? WHERE id=?').run(new Date().toISOString(), id);
         saveCollections(id, value);
+        for (const event of transitions) {
+          const text = `${flagLabels[event.kind]} ${event.active ? 'enabled' : 'disabled'}\nComment: ${event.comment || '—'}`;
+          sql("INSERT INTO activity(id,card_id,text,created_at,contacts,kind) VALUES(?,?,?,?,'[]','flag')").run(randomUUID(), id, text, event.happenedAt);
+        }
         return service.getCard(id);
       });
     },
@@ -395,7 +426,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
           return contact;
         });
         sql('INSERT INTO activity(id,card_id,text,created_at,contacts) VALUES(?,?,?,?,?)').run(randomUUID(), id, text, now, JSON.stringify(contacts));
-        sql('UPDATE cards SET version=version+1,updated_at=? WHERE id=?').run(now, id);
+        sql('UPDATE cards SET version=version+1,imported_pending=0,updated_at=? WHERE id=?').run(now, id);
         return service.getCard(id);
       });
     },
@@ -466,6 +497,78 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         tags: sql('SELECT id,name,color,category FROM tags ORDER BY rowid').all(),
         cards: sql('SELECT * FROM cards ORDER BY rowid').all().map(hydrate) }));
     },
+    importList({ bundle, mode, targetListId }) {
+      requireObject(bundle);
+      if (bundle.format !== 'leader-list' || bundle.version !== 1 || !Array.isArray(bundle.cards)) throw new StoreError('Select a Leader list export.');
+      if (bundle.cards.length > 10000) throw new StoreError('A list import can contain at most 10,000 cards.');
+      if (!['preserve', 'target'].includes(mode)) throw new StoreError('Choose how imported card categories are assigned.');
+      const target = mode === 'target' ? sql('SELECT id,name FROM lists WHERE id=?').get(string(targetListId, 'targetListId', 100, true)) : null;
+      const targetType = target && Object.entries(listByAccountType).find(([, names]) => names.includes(target.name))?.[0];
+      if (mode === 'target' && !targetType) throw new StoreError('Choose one of the four permanent lists as the target.');
+      const timestamp = value => {
+        const text = string(value, 'timestamp', 40, true);
+        if (!/^\d{4}-\d\d-\d\dT/.test(text) || !Number.isFinite(Date.parse(text))) throw new StoreError('Invalid history date.');
+        return text;
+      };
+      return transaction(() => {
+        let created = 0, skipped = 0, omittedLinks = 0;
+        const inserted = [];
+        for (const record of bundle.cards) {
+          requireObject(record);
+          const sourceId = string(record.id, 'card.id', 100, true);
+          if (sql('SELECT 1 FROM cards WHERE id=?').get(sourceId)) { skipped++; continue; }
+          const accountType = mode === 'target' ? targetType : record.accountType;
+          if (!Object.hasOwn(listByAccountType, accountType)) throw new StoreError('An imported card has an unknown category.');
+          const list = mode === 'target' ? target : listByAccountType[accountType].map(name => sql('SELECT id,name FROM lists WHERE name=? COLLATE NOCASE').get(name)).find(Boolean);
+          if (!list) throw new StoreError('A permanent list required by an imported card is missing.');
+          if (!Array.isArray(record.tags) || !Array.isArray(record.activity)) throw new StoreError('Invalid imported tags or history.');
+          const tagIds = [];
+          for (const tag of record.tags) {
+            requireObject(tag);
+            if (String(tag.id).startsWith('quarter:')) continue;
+            const name = string(tag.name, 'tag.name', 100, true);
+            const existing = sql('SELECT id FROM tags WHERE name=? COLLATE NOCASE').get(name);
+            tagIds.push(existing?.id || service.createTag({ name, color: tag.color, category: tag.category ?? null }).id);
+          }
+          const fields = Object.fromEntries(Object.entries(record).filter(([key]) => writableFields.has(key)));
+          delete fields.distributorIds;
+          fields.listId = list.id;
+          fields.accountType = accountType;
+          fields.archived = false;
+          fields.tagIds = [...new Set(tagIds)];
+          if (fields.flags) fields.flags = Object.fromEntries(Object.entries(fields.flags).map(([kind, flag]) => [kind, { active: flag.active, comment: flag.comment }]));
+          const card = service.createCard(fields, sourceId);
+          if (!Number.isInteger(record.version) || record.version < 1) throw new StoreError('Invalid card version.');
+          sql('UPDATE cards SET version=?,created_at=?,updated_at=?,starred_at=?,imported_pending=1 WHERE id=?')
+            .run(record.version, timestamp(record.createdAt), timestamp(record.updatedAt), record.starredAt ? timestamp(record.starredAt) : null, card.id);
+          for (const [kind, flag] of Object.entries(record.flags || {})) {
+            sql('UPDATE card_flags SET activated_at=? WHERE card_id=? AND kind=?').run(flag.activatedAt ? timestamp(flag.activatedAt) : null, card.id, kind);
+          }
+          for (const entry of record.activity) {
+            requireObject(entry);
+            const contacts = entry.contacts === undefined ? [] : validate({ contacts: entry.contacts }).contacts;
+            const kind = entry.kind ?? 'note';
+            if (!['note', 'flag'].includes(kind)) throw new StoreError('Invalid history event kind.');
+            sql('INSERT INTO activity(id,card_id,text,created_at,contacts,kind) VALUES(?,?,?,?,?,?)')
+              .run(string(entry.id, 'activity.id', 100, true), card.id, string(entry.text, 'activity.text', 10000, true), timestamp(entry.createdAt), JSON.stringify(contacts), kind);
+          }
+          inserted.push({ id: card.id, distributorIds: record.distributorIds });
+          created++;
+        }
+        for (const record of inserted) {
+          if (record.distributorIds === undefined) continue;
+          if (!Array.isArray(record.distributorIds) || record.distributorIds.length > 20) throw new StoreError('Invalid distributor links.');
+          const available = record.distributorIds.map(id => string(id, 'distributorId', 100, true)).filter(id => {
+            const linked = sql('SELECT account_type FROM cards WHERE id=?').get(id);
+            if (linked && ['distributor', 'partner'].includes(linked.account_type)) return true;
+            omittedLinks++;
+            return false;
+          });
+          saveCollections(record.id, validate({ distributorIds: available }));
+        }
+        return { created, skipped, omittedLinks };
+      });
+    },
     importData(bundle) {
       requireObject(bundle);
       if (bundle.format !== 'leader-company' || bundle.version !== 1 || !Array.isArray(bundle.lists) || !Array.isArray(bundle.tags) || !Array.isArray(bundle.cards)) throw new StoreError('Unsupported Leader database format.');
@@ -493,13 +596,16 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
           fields.tagIds = record.tags.filter(tag => !String(tag.id).startsWith('quarter:')).map(tag => tag.id);
           const card = service.createCard(fields, record.id);
           if (!Number.isInteger(record.version) || record.version < 1) throw new StoreError('Invalid card version.');
-          sql('UPDATE cards SET version=?,created_at=?,updated_at=? WHERE id=?').run(record.version, timestamp(record.createdAt), timestamp(record.updatedAt), card.id);
+          if (record.importedPending !== undefined && typeof record.importedPending !== 'boolean') throw new StoreError('Invalid imported marker.');
+          sql('UPDATE cards SET version=?,created_at=?,updated_at=?,imported_pending=? WHERE id=?').run(record.version, timestamp(record.createdAt), timestamp(record.updatedAt), Number(record.importedPending === true), card.id);
           sql('UPDATE cards SET starred_at=? WHERE id=?').run(record.starredAt ? timestamp(record.starredAt) : null, card.id);
           for (const [kind,flag] of Object.entries(record.flags || {})) sql('UPDATE card_flags SET activated_at=? WHERE card_id=? AND kind=?').run(flag.activatedAt ? timestamp(flag.activatedAt) : null,card.id,kind);
           for (const entry of record.activity) {
             requireObject(entry);
             const contacts = entry.contacts === undefined ? [] : validate({contacts:entry.contacts}).contacts;
-            sql('INSERT INTO activity(id,card_id,text,created_at,contacts) VALUES(?,?,?,?,?)').run(string(entry.id, 'activity.id', 100, true), card.id, string(entry.text, 'activity.text', 10000, true), timestamp(entry.createdAt), JSON.stringify(contacts));
+            const kind = entry.kind ?? 'note';
+            if (!['note', 'flag'].includes(kind)) throw new StoreError('Invalid history event kind.');
+            sql('INSERT INTO activity(id,card_id,text,created_at,contacts,kind) VALUES(?,?,?,?,?,?)').run(string(entry.id, 'activity.id', 100, true), card.id, string(entry.text, 'activity.text', 10000, true), timestamp(entry.createdAt), JSON.stringify(contacts), kind);
           }
         }
         for (const record of bundle.cards) if (record.distributorIds) saveCollections(record.id, validate({ distributorIds: record.distributorIds }));

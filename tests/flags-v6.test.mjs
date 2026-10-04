@@ -44,6 +44,6 @@ test('v5 flags migrate without losing card revisions, comments or activation dat
     store.close();store=createStore({path,seed:false});
     assert.deepEqual(store.getCard(card.id),card);
     const check=new DatabaseSync(path,{readOnly:true});
-    try {assert.equal(check.prepare('PRAGMA user_version').get().user_version,8);assert.deepEqual(check.prepare('PRAGMA foreign_key_check').all(),[]);}finally{check.close();}
+    try {assert.equal(check.prepare('PRAGMA user_version').get().user_version,10);assert.deepEqual(check.prepare('PRAGMA foreign_key_check').all(),[]);}finally{check.close();}
   } finally {store?.close();assert.ok(resolve(directory).startsWith(resolve(tmpdir())+sep));assert.ok(directory.includes('leader-flags-v6-'));rmSync(directory,{recursive:true,force:true});}
 });

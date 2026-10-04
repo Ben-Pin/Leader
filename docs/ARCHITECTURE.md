@@ -48,3 +48,5 @@ Schema v7 adds a contacts JSON column to cards in the schema transaction. Legacy
 
 
 Schema v8 adds activity.contacts JSON snapshots and fills missing contact statuses with active in one schema transaction, retaining card versions/timestamps. History creation validates participant IDs against the same card inside its revision transaction; snapshots avoid losing attribution on later contact edits/removal. Portable import/export validates and retains snapshots, while accepting old unlinked activity.
+
+Schema v10 adds `cards.imported_pending` and `activity.kind`. List imports run inside one SQLite transaction using shared card validation, preserve portable history, remap tags by name, and skip existing card IDs. A user edit clears the temporary Imported marker. UI flag toggles are queued with timestamps until the card saves or Undo discards them; the service validates their transitions against final flag state and writes each to activity. MCP/HTTP flag changes without an explicit transition list also produce a history event.

@@ -3,13 +3,15 @@ import {
   Archive, ArrowDownWideNarrow, ArrowLeft, CalendarDays, Check, CheckCheck, ChevronDown,
   ChevronRight, Circle, CircleCheck, CircleHelp, CirclePlus, Clock3, Copy, Flag, Globe2,
   Hash, Inbox, LayoutList, LoaderCircle, Mail, MessageSquare, MoreHorizontal, Plus,
-  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Star, Tag as TagIcon, Trash2, UserRound, Minus,
+  Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Lightbulb, Star, Tag as TagIcon, Trash2, UserRound, Minus,
   UsersRound, X, DollarSign, Truck, TriangleAlert, Undo2, Database, Download, Upload, Wrench,
 } from 'lucide-react';
 import { ApiError, request, selectCompany } from './api';
 import { Relationships } from './Relationships';
 import { ClientGlobe } from './ClientGlobe';
 import { GameTokenArt, GameTokenGallery, gameTokens, useGameTokenHold } from './GameTokens';
+import { interleaveWisdom, wisdomThoughts } from './wisdom';
+import { listExportStamp, prepareListCards } from './list-transfer';
 import { countryNames,tagCategory } from './geography';
 import './workspaces.css';
 import type { Bootstrap, Card, CardDraft, CardPage, ClientList, LeadStatus, Selection, Tag, FlagKey, CompanyDatabase, ContactStatus, AccountType } from './types';
@@ -41,6 +43,7 @@ const palette = ['#5475d9', '#749ce8', '#36a885', '#9bb342', '#dca249', '#e97965
 const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
 const fullDateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 const PAGE_SIZE = 100;
+type FlagTransition = { kind: FlagKey; active: boolean; comment: string; happenedAt: string };
 const errorText = (error: unknown) => error instanceof Error ? error.message : 'Could not complete the action.';
 const colorStyle = (color: string): CSSProperties => ({ '--tag-color': /^#[0-9a-f]{6}$/i.test(color) ? color : '#5475d9' } as CSSProperties);
 const formatDate = (date?: string | null, full = false) => {
@@ -65,6 +68,11 @@ function draftFrom(card: Card): CardDraft {
     dueDate: card.dueDate || '', status: card.status, priority: card.priority,
     tagIds: card.tags.filter(t => !t.id.startsWith('quarter:')).map(t => t.id), checklist: card.checklist || [], flags: Object.fromEntries(workFlags.map(({key})=>[key,{active:card.flags[key].active,comment:card.flags[key].comment}])) as CardDraft['flags'],
     accountType: card.accountType, distributorIds: card.distributorIds };
+}
+function completedFlagEvents(events: readonly FlagTransition[], draft: CardDraft): FlagTransition[] {
+  const lastEventIndex = new Map<FlagKey, number>();
+  events.forEach((event, index) => lastEventIndex.set(event.kind, index));
+  return events.map((event, index) => lastEventIndex.get(event.kind) === index ? { ...event, comment: draft.flags[event.kind].comment } : event);
 }
 function Badge({ tag, onClick }: { tag: Tag; onClick?: () => void }) {
   const props = { className: `tag-badge ${tag.id.startsWith('quarter:') ? 'quarter-badge' : ''}`, style: colorStyle(tag.color), title: tag.id.startsWith('quarter:') ? `Last contact: Q${tag.name.split('-')[1]} ${tag.name.split('-')[0]}` : tag.name };
@@ -116,6 +124,7 @@ export default function App() {
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [draft, setDraft] = useState<CardDraft | null>(null);
+  const [pendingFlagEvents, setPendingFlagEvents] = useState<FlagTransition[]>([]);
   const [saving, setSaving] = useState(false);
   const [retagging, setRetagging] = useState(false);
   const [exportingList, setExportingList] = useState(false);
@@ -123,7 +132,7 @@ export default function App() {
   const [saveError, setSaveError] = useState('');
   const [conflict, setConflict] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [modal, setModal] = useState<'card' | 'list' | 'tag' | 'about' | 'archive' | 'companies' | 'globe' | 'profile' | 'gameTokens' | null>(null);
+  const [modal, setModal] = useState<'card' | 'list' | 'tag' | 'about' | 'archive' | 'companies' | 'globe' | 'profile' | 'gameTokens' | 'listExport' | 'listImport' | null>(null);
   const [userName,setUserName]=useState(()=>localStorage.getItem('leader.userName')||'Local user');
   const [gameTokenId, setGameTokenId] = useState(() => {
     const stored = localStorage.getItem('leader.gameToken');
@@ -154,7 +163,7 @@ export default function App() {
   const dirtyRef = useRef(false);
   const discardPending = useRef(false);
   const bootstrapRef = useRef<Bootstrap | null>(null);
-  const dirty = Boolean(selected && draft && JSON.stringify(draft) !== JSON.stringify(draftFrom(selected)));
+  const dirty = Boolean(selected && draft && (pendingFlagEvents.length > 0 || JSON.stringify(draft) !== JSON.stringify(draftFrom(selected))));
   selectedRef.current = selected; dirtyRef.current = dirty; bootstrapRef.current = bootstrap;
   const loadBootstrap = useCallback(async () => {
     const data = await request<Bootstrap>('/bootstrap');
@@ -184,12 +193,12 @@ export default function App() {
       void fetch(`/api/cards/${encodeURIComponent(selected.id)}`, {
         method: 'PATCH', keepalive: true,
         headers: { 'Content-Type': 'application/json', 'X-Leader-Token': bootstrap.csrfToken, 'X-Leader-Company': bootstrap.company.id },
-        body: JSON.stringify({ ...draft, title: draft.title.trim(), version: selected.version }),
+        body: JSON.stringify({ ...draft, title: draft.title.trim(), flagEvents: completedFlagEvents(pendingFlagEvents, draft), version: selected.version }),
       });
     };
     window.addEventListener('pagehide', onPageHide);
     return () => window.removeEventListener('pagehide', onPageHide);
-  }, [dirty, selected, draft, bootstrap]);
+  }, [dirty, selected, draft, pendingFlagEvents, bootstrap]);
   useEffect(() => {
     const warnBeforeLeave = (event: BeforeUnloadEvent) => {
       if (!dirtyRef.current && !saveInFlight.current) return;
@@ -242,6 +251,7 @@ export default function App() {
     if (saveInFlight.current) return;
     dirtyRef.current = false;
     if (selected) setDraft(draftFrom(selected));
+    setPendingFlagEvents([]);
     hideDetail(); setSaveError(''); setConflict(false);
   };
   const switchCompany = async (id: string) => {
@@ -259,7 +269,7 @@ export default function App() {
     if (detailExitTimer.current) { clearTimeout(detailExitTimer.current); detailExitTimer.current = null; }
     setDetailVisible(true);
     const sequence = ++detailRequest.current;
-    setSelected(card); setDraft(draftFrom(card)); setSaveError(''); setConflict(false); setDetailTab('card'); setTagPicker(false); setComment(''); setCommentContacts([]); setCheckText('');
+    setSelected(card); setDraft(draftFrom(card)); setPendingFlagEvents([]); setSaveError(''); setConflict(false); setDetailTab('card'); setTagPicker(false); setComment(''); setCommentContacts([]); setCheckText('');
     setDetailLoading(true);
     try {
       const fresh = await request<Card>(`/cards/${encodeURIComponent(card.id)}`);
@@ -274,9 +284,16 @@ export default function App() {
     catch (e) { setToast(errorText(e)); }
   };
   const updateDraft = <K extends keyof CardDraft>(key: K, value: CardDraft[K]) => setDraft(prev => prev ? { ...prev, [key]: value } : prev);
+  const toggleDraftFlag = (key: FlagKey) => {
+    if (!draft) return;
+    const active = !draft.flags[key].active;
+    setPendingFlagEvents(events => [...events, { kind: key, active, comment: draft.flags[key].comment, happenedAt: new Date().toISOString() }]);
+    const today = localToday();
+    setDraft(previous => previous ? { ...previous, lastContact: today, contactQuarter: quarterForDate(today), flags: { ...previous.flags, [key]: { ...previous.flags[key], active } } } : previous);
+  };
   const reconcile = (card: Card) => {
     setCards(prev => prev.map(c => c.id === card.id ? card : c));
-    if (selectedRef.current?.id === card.id) { selectedRef.current = card; dirtyRef.current = false; setSelected(card); setDraft(draftFrom(card)); }
+    if (selectedRef.current?.id === card.id) { selectedRef.current = card; dirtyRef.current = false; setSelected(card); setDraft(draftFrom(card)); setPendingFlagEvents([]); }
     setRefreshKey(k => k + 1);
     loadBootstrap().catch(() => setToast('Changes saved. Counts will refresh after reload.'));
   };
@@ -309,7 +326,7 @@ export default function App() {
     const operation = (async () => {
       setSaving(true); setSaveError(''); setConflict(false);
       try {
-        const result = await writeCard(selected, { ...draft, title: draft.title.trim() });
+        const result = await writeCard(selected, { ...draft, title: draft.title.trim(), flagEvents: completedFlagEvents(pendingFlagEvents, draft) });
         reconcile(result); return result;
       } catch (e) {
         setConflict(e instanceof ApiError && e.status === 409);
@@ -374,8 +391,24 @@ export default function App() {
   const activeSidebar = (kind: Selection['kind'], id: string) => selection.kind === kind && selection.id === id;
   const openCreate = async () => { if (await guardChanges()) setModal('card'); };
   const openCompanies = async () => { if (await guardChanges()) setModal('companies'); };
-  const exportCurrentList = async () => {
-    if (!bootstrap || exportingList || !(await guardChanges())) return;
+  const openListAction = async (action: 'listExport' | 'listImport') => { if (await guardChanges()) setModal(action); };
+  const exportCurrentList = async (options: { includeDescription: boolean; includeHistory: boolean }) => {
+    if (!bootstrap || exportingList) return;
+    const listName = debouncedSearch.trim() ? 'Search results' : displayListName(title || 'All cards');
+    const fileName = (`Leader-${bootstrap.company.name}-${listName}-${listExportStamp(new Date())}`
+      .replace(/[^\p{L}\p{N} _-]/gu, '_')) + '.json';
+    type SaveHandle = { createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> };
+    const savePicker = (window as Window & { showSaveFilePicker?: (options: object) => Promise<SaveHandle> }).showSaveFilePicker;
+    let saveHandle: SaveHandle | null = null;
+    // Open the native picker before the first await so the browser keeps the user's click activation.
+    if (savePicker) {
+      try { saveHandle = await savePicker.call(window, { suggestedName: fileName, types: [{ description: 'Leader JSON', accept: { 'application/json': ['.json'] } }] }); }
+      catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setToast(errorText(error));
+        return;
+      }
+    }
     setExportingList(true);
     try {
       const query = new URLSearchParams(queryString());
@@ -389,17 +422,25 @@ export default function App() {
         if (!page.items.length && exported.length < expected) throw new Error('Export stopped before all cards were loaded.');
         exported.push(...page.items);
       } while (exported.length < expected);
-      const listName = debouncedSearch.trim() ? 'Search results' : displayListName(title || 'All cards');
       const bundle = { format: 'leader-list', version: 1, exportedAt: new Date().toISOString(),
         company: bootstrap.company, selection: { ...selection, name: listName, search: debouncedSearch.trim(), sort },
-        total: exported.length, cards: exported };
-      const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }));
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `Leader-${bootstrap.company.name}-${listName}`.replace(/[^\p{L}\p{N} _-]/gu, '_') + '.json';
-      document.body.appendChild(anchor); anchor.click(); anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+        included: { description: options.includeDescription, history: options.includeHistory },
+        total: exported.length, cards: prepareListCards(exported, options) };
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+      if (saveHandle) {
+        const writable = await saveHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } else {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor); anchor.click(); anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
       setToast(`Exported ${exported.length.toLocaleString('en-GB')} cards.`);
+      setModal(null);
     } catch (error) { setToast(errorText(error)); }
     finally { setExportingList(false); }
   };
@@ -503,9 +544,10 @@ export default function App() {
           {selection.kind === 'tag' && !selection.id.startsWith('quarter:') && <select aria-label="Tag group" value={bootstrap.tags.find(tag => tag.id === selection.id)?.category || tagCategory(title || '')} onChange={event => void changeTagGroup(selection.id, event.target.value)}>{tagGroups.map(group => <option key={group} value={group}>{group}</option>)}</select>}
           {((selection.kind === 'tag' && !selection.id.startsWith('quarter:')) || (selection.kind === 'list' && !permanentListTypes[title || ''])) && <IconButton label={selection.kind === 'list' ? 'Delete list' : 'Delete tag'} onClick={deleteSelection}><Trash2 size={17}/></IconButton>}
           <div className="header-ticket-stack" aria-label="List actions">
-            <button type="button" className="primary-button new-card-button" aria-label="Add card" onClick={openCreate}><span className="ticket-plus"><Plus size={14}/></span><span className="ticket-label">Card</span></button>
-            <button type="button" className="primary-button new-card-button" aria-label="List export" title="Export the current list, filters, and search as JSON" disabled={exportingList} onClick={exportCurrentList}><span className="ticket-plus">{exportingList ? <LoaderCircle size={13} className="spin"/> : <Download size={13}/>}</span><span className="ticket-label ticket-label-long">List Export</span></button>
-            <button type="button" className={`primary-button new-card-button wisdom-button ${wisdomEnabled ? 'wisdom-on' : ''}`} aria-label={`Wisdom ${wisdomEnabled ? 'on' : 'off'}`} aria-pressed={wisdomEnabled} title="Thought cards will appear after a source is added" onClick={toggleWisdom}><span className="ticket-label ticket-label-long">Wisdom</span><span className="ticket-switch">{wisdomEnabled ? <Minus size={13}/> : <Plus size={13}/>}</span></button>
+            <button type="button" className="header-action-button" aria-label="Add card" title="Add card" onClick={openCreate}><Plus size={20}/></button>
+            <button type="button" className="header-action-button" aria-label="List import" title="List import" onClick={() => void openListAction('listImport')}><Upload size={19}/></button>
+            <button type="button" className="header-action-button" aria-label="List export" title="List export" onClick={() => void openListAction('listExport')}><Download size={19}/></button>
+            <button type="button" className={`header-action-button wisdom-button ${wisdomEnabled ? 'wisdom-on' : ''}`} aria-label={`Wisdom ${wisdomEnabled ? 'on' : 'off'}`} aria-pressed={wisdomEnabled} title="Wisdom · content source not connected yet" onClick={toggleWisdom}><Lightbulb size={19}/><span className="action-corner">{wisdomEnabled ? <Minus size={11}/> : <Plus size={11}/>}</span></button>
           </div>
         </div>
       </div>
@@ -516,15 +558,18 @@ export default function App() {
           : listError ? <div className="empty-state"><CircleHelp size={36}/><h2>Could not load cards</h2><p>{listError}</p><button className="secondary-button" onClick={() => setRefreshKey(k => k + 1)}>Retry</button></div>
           : cards.length === 0 ? <div className="empty-state"><div className="empty-icon">{debouncedSearch ? <Search size={32}/> : <Inbox size={34}/>}</div><h2>{debouncedSearch ? 'No results' : 'No cards'}</h2><p>{debouncedSearch ? 'Search by company, country, or contact.' : ''}</p><button className="secondary-button" onClick={() => debouncedSearch ? setSearch('') : openCreate()}>{debouncedSearch ? 'Clear search' : 'Add card'}</button></div>
           : <><div className="card-group-heading"><ChevronDown size={13}/><span>Cards</span><span>{total}</span></div>
-            <div className="card-list">{cards.map(card => <div key={card.id} className={`card-row ${selected?.id === card.id ? 'selected' : ''}`}>
+            <div className="card-list">{interleaveWisdom(cards, wisdomThoughts, wisdomEnabled).map(item => {
+              if (item.kind === 'thought') return <article key={`wisdom:${item.thought.id}`} className="wisdom-row" aria-label="Wisdom thought"><Sparkles size={17} aria-hidden="true"/><div><span className="wisdom-eyebrow">Wisdom</span><p>{item.thought.text}</p>{item.thought.attribution && <small>{item.thought.attribution}</small>}</div></article>;
+              const card = item.card;
+              return <div key={card.id} className={`card-row ${selected?.id === card.id ? 'selected' : ''}`}>
               <button className="card-row-content" onClick={() => openCard(card)} aria-label={`Open ${card.title}`} aria-current={selected?.id === card.id ? 'true' : undefined}>
                 <div className="card-title-line"><span className="card-title">{card.title}</span>{card.priority === 3 && <Flag size={12} className="high-priority" fill="currentColor"/>}</div>
                 <div className="card-subtitle">{card.country && <span>{[card.country,card.secondaryCountry].filter(Boolean).join(' / ')}</span>}{card.country && card.contactName && <span className="subtitle-dot">·</span>}{card.contactName && <span>{card.contactName}</span>}{!card.country && !card.contactName && <span>{card.company || 'Add customer details'}</span>}</div>
-                <div className="row-tags">{card.tags.slice(0, 3).map(tag => <Badge tag={tag} key={tag.id}/>)}{card.tags.length > 3 && <span className="more-tags">+{card.tags.length - 3}</span>}{card.checklist.length > 0 && <span className="checklist-count"><CheckCheck size={12}/>{card.checklist.filter(c => c.done).length}/{card.checklist.length}</span>}</div>
+                <div className="row-tags">{card.importedPending && <span className="imported-badge">Imported</span>}{card.tags.slice(0, 3).map(tag => <Badge tag={tag} key={tag.id}/>)}{card.tags.length > 3 && <span className="more-tags">+{card.tags.length - 3}</span>}{card.checklist.length > 0 && <span className="checklist-count"><CheckCheck size={12}/>{card.checklist.filter(c => c.done).length}/{card.checklist.length}</span>}</div>
                 <div className="row-flags">{workFlags.filter(flag => card.flags[flag.key].active).map(({ key, label, Icon }) => <span className={`row-attention ${key}`} key={key} title={`${label}: ${card.flags[key].comment}`}><span className={`signal-button signal-badge ${key} selected`} aria-label={label}><Icon size={11}/></span><span className="flag-comment-preview">{card.flags[key].comment || label}</span><time>{card.flags[key].activatedAt?formatDate(card.flags[key].activatedAt,true):'Date unknown'}</time></span>)}</div>
               </button>
               <div className="card-trailing"><button className={`row-star ${card.starred ? 'is-starred' : ''}`} aria-label={card.starred ? `Remove from important: ${card.title}` : `Mark important: ${card.title}`} title={card.starred ? 'Remove from important' : 'Mark important'} onClick={() => toggleCard(card, 'starred')} disabled={saving}><Star size={15} fill={card.starred ? 'currentColor' : 'none'}/></button>{card.starred&&<time className="starred-date" title="Marked important">★ {card.starredAt?formatDate(card.starredAt,true):'Date unknown'}</time>}<span className="contact-date" title={card.lastContact ? `Last contact: ${formatDate(card.lastContact, true)}` : 'Contact date not set'}><Clock3 size={10}/> {formatDate(card.lastContact) || '—'}</span></div>
-            </div>)}</div>
+            </div>})}</div>
             {cards.length < total && <button className="load-more" onClick={loadMore} disabled={loadingMore}>{loadingMore ? <LoaderCircle className="spin" size={16}/> : <ChevronDown size={16}/>}Show more · {Math.min(PAGE_SIZE, total - cards.length)}</button>}
             <div className="list-end"><span/>{`Showing ${cards.length} of ${total}`}<span/></div>
           </>}
@@ -534,7 +579,7 @@ export default function App() {
 
     {selected && draft ? <aside key={selected.id} className={`detail-pane ${detailVisible ? 'detail-entering' : 'detail-exiting'}`} aria-label="Customer card" aria-hidden={!detailVisible} inert={!detailVisible} onBlurCapture={event => { const pane = event.currentTarget; const next = event.relatedTarget as HTMLElement | null; if (discardPending.current || next?.closest('[data-discard]')) return; if (!next) { const request = detailRequest.current; queueMicrotask(() => { if (request === detailRequest.current && !discardPending.current && !pane.contains(document.activeElement) && dirtyRef.current) void saveDraft(); }); return; } if (!pane.contains(next) && dirtyRef.current) void saveDraft(); }}>
       <div className="detail-topbar"><button className="secondary-button save-button" data-discard onPointerDownCapture={() => { discardPending.current = true; }} onKeyDownCapture={event => { if (event.key === 'Enter' || event.key === ' ') discardPending.current = true; }} onClick={discardAndClose} disabled={saving || detailLoading}><Undo2 size={15}/>Undo</button><div className="detail-topbar-actions">
-        <div className="traffic-lights" aria-label="Card flags">{workFlags.map(({ key, label, Icon }) => <button key={key} role="checkbox" className={`signal-button ${key} ${draft.flags[key].active ? 'selected' : ''}`} aria-label={`Flag ${label}`} title={`${label} · updates last contact to today`} aria-checked={draft.flags[key].active} onClick={() => { const today = localToday(); setDraft(previous => previous ? { ...previous, lastContact: today, contactQuarter: quarterForDate(today), flags: { ...previous.flags, [key]: { ...previous.flags[key], active: !previous.flags[key].active } } } : previous); }} disabled={saving || detailLoading}><Icon size={16}/></button>)}</div>
+        <div className="traffic-lights" aria-label="Card flags">{workFlags.map(({ key, label, Icon }) => <button key={key} role="checkbox" className={`signal-button ${key} ${draft.flags[key].active ? 'selected' : ''}`} aria-label={`Flag ${label}`} title={`${label} · records a dated history event and updates last contact`} aria-checked={draft.flags[key].active} onClick={() => toggleDraftFlag(key)} disabled={saving || detailLoading}><Icon size={16}/></button>)}</div>
         <span className="toolbar-divider"/><IconButton label="Close card" onClick={closeCard}><X size={19}/></IconButton>
       </div></div>
       <div className="detail-scroll" ref={detailScrollRef} inert={saving}>
@@ -543,7 +588,7 @@ export default function App() {
         </div>}
         <div className="detail-list-select"><Hash size={15} style={{ color: selectedList?.color }}/><select aria-label="Card list" value={draft.listId} onChange={e => { const list = bootstrap.lists.find(x => x.id === e.target.value); setDraft(previous => previous ? { ...previous, listId: e.target.value, accountType: list && permanentListTypes[list.name] || previous.accountType } : previous); }} disabled={detailLoading}>{bootstrap.lists.map(list => <option key={list.id} value={list.id}>{displayListName(list.name)}</option>)}</select><ChevronDown size={13}/>{detailLoading && <LoaderCircle className="spin" size={14}/>}</div>
         <textarea className="detail-title" rows={2} value={draft.title} onChange={e => updateDraft('title', e.target.value)} aria-label="Card name" placeholder="Company name" disabled={detailLoading}/>
-        <div className="detail-tag-row">{draftTags.map(tag => <span className="removable-tag" key={tag.id}><Badge tag={tag}/><button aria-label={`Remove tag ${tag.name}`} title={tag.id.startsWith('quarter:')?'Clear contact date and quarter':'Remove from card'} disabled={detailLoading} onClick={()=>{if(tag.id.startsWith('quarter:')){setDraft(d=>d?{...d,lastContact:'',contactQuarter:null}:d);setToast('Date and quarter cleared in the draft. Changes save when you leave the card.');}else updateDraft('tagIds',draft.tagIds.filter(id=>id!==tag.id));}}><X size={11}/></button></span>)}<button className={`add-tag-button ${tagPicker ? 'active' : ''}`} aria-label="Edit tags" onClick={() => setTagPicker(!tagPicker)} disabled={detailLoading}><Plus size={13}/>{draftTags.length === 0 ? 'Add tags' : ''}</button></div>
+        <div className="detail-tag-row">{selected.importedPending && <span className="imported-badge" title="This marker clears after the first saved edit">Imported</span>}{draftTags.map(tag => <span className="removable-tag" key={tag.id}><Badge tag={tag}/><button aria-label={`Remove tag ${tag.name}`} title={tag.id.startsWith('quarter:')?'Clear contact date and quarter':'Remove from card'} disabled={detailLoading} onClick={()=>{if(tag.id.startsWith('quarter:')){setDraft(d=>d?{...d,lastContact:'',contactQuarter:null}:d);setToast('Date and quarter cleared in the draft. Changes save when you leave the card.');}else updateDraft('tagIds',draft.tagIds.filter(id=>id!==tag.id));}}><X size={11}/></button></span>)}<button className={`add-tag-button ${tagPicker ? 'active' : ''}`} aria-label="Edit tags" onClick={() => setTagPicker(!tagPicker)} disabled={detailLoading}><Plus size={13}/>{draftTags.length === 0 ? 'Add tags' : ''}</button></div>
         {tagPicker && <div className="tag-picker"><span className="picker-heading">Card tags</span>{ordinaryTags.length ? ordinaryTags.map(tag => <label key={tag.id}><input type="checkbox" checked={draft.tagIds.includes(tag.id)} onChange={e => updateDraft('tagIds', e.target.checked ? [...draft.tagIds, tag.id] : draft.tagIds.filter(id => id !== tag.id))}/><TagIcon size={14} style={{ color: tag.color }}/>{tag.name}</label>) : <p>Create a tag to group cards.</p>}<button className="text-button" onClick={() => setModal('tag')}><Plus size={14}/>Create tag</button><div className="picker-note">The quarter tag is generated from the last contact date.</div></div>}
         <div className="detail-tabs" role="tablist" aria-label="Card sections">
           <button role="tab" aria-selected={detailTab === 'card'} className={detailTab === 'card' ? 'active' : ''} onClick={() => setDetailTab('card')}>Card</button>
@@ -566,7 +611,7 @@ export default function App() {
             {draft.checklist.map(item => <div className={`checklist-item ${item.done ? 'done' : ''}`} key={item.id}><button className={`completion-control ${item.done ? 'is-checked' : ''}`} aria-label={`${item.done ? 'Undo' : 'Complete'} step: ${item.text}`} onClick={() => updateDraft('checklist', draft.checklist.map(c => c.id === item.id ? { ...c, done: !c.done } : c))} disabled={detailLoading}>{item.done && <Check size={11}/>}</button><input aria-label="Next step text" value={item.text} onChange={e => updateDraft('checklist', draft.checklist.map(c => c.id === item.id ? { ...c, text: e.target.value } : c))} disabled={detailLoading}/><IconButton label={`Delete step: ${item.text}`} onClick={() => updateDraft('checklist', draft.checklist.filter(c => c.id !== item.id))} disabled={detailLoading}><X size={13}/></IconButton></div>)}
             <form className="add-checklist" onSubmit={e => { e.preventDefault(); if (!checkText.trim()) return; updateDraft('checklist', [...draft.checklist, { id: crypto.randomUUID(), text: checkText.trim(), done: false }]); setCheckText(''); }}><Plus size={15}/><input aria-label="Add next step" placeholder="Add step" value={checkText} onChange={e => setCheckText(e.target.value)} disabled={detailLoading}/>{checkText.trim() && <button type="submit">Add</button>}</form>
           </section>
-          {selected.activity.length > 0 && <button className="last-activity" onClick={() => setDetailTab('activity')}><MessageSquare size={15}/><span><strong>Latest note</strong><span>{selected.activity[0].text}</span></span><ChevronRight size={15}/></button>}
+          {selected.activity.length > 0 && <button className="last-activity" onClick={() => setDetailTab('activity')}><MessageSquare size={15}/><span><strong>Latest activity</strong><span>{selected.activity[0].text}</span></span><ChevronRight size={15}/></button>}
         </div> : detailTab === 'contacts' ? <div className="contacts-content">
           <section className="detail-section contacts-section" aria-label="Company contacts">
             <div className="detail-section-heading"><h3>Contacts</h3><span>{draft.contacts.length}</span></div>
@@ -579,7 +624,7 @@ export default function App() {
             </div>)}
             <button className="text-button add-contact" disabled={detailLoading || saving || draft.contacts.length >= 100} onClick={() => updateDraft('contacts', [...draft.contacts, {id:crypto.randomUUID(),name:'',role:'',email:'',status:'active'}])}><Plus size={15}/>Add contact</button>
           </section>
-        </div> : <div className="activity-content"><p className="activity-description">Discussion context and agreements.</p>{selected.activity.length ? <div className="activity-list">{selected.activity.map(item => <article className="activity-item" key={item.id}><span className="activity-dot"/><div><time>{formatDate(item.createdAt, true)}{item.createdAt.includes('T') ? ` · ${new Date(item.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}</time><p>{item.text}</p><div className="activity-contacts">{item.contacts.length ? item.contacts.map(contact => <span key={contact.id} title={[contact.role,contact.email,contactStatusLabel(contact.status)].filter(Boolean).join(' · ')}>{contact.name || contact.email || contact.role}</span>) : <small>Older entry without contacts</small>}</div></div></article>)}</div> : <div className="activity-empty"><MessageSquare size={25}/><p>No notes yet</p><span>Record the first conversation.</span></div>}
+        </div> : <div className="activity-content"><p className="activity-description">Discussion context, agreements, and dated flag changes.</p>{selected.activity.length ? <div className="activity-list">{selected.activity.map(item => <article className={`activity-item ${item.kind === 'flag' ? 'flag-history-item' : ''}`} key={item.id}><span className="activity-dot"/><div><time>{formatDate(item.createdAt, true)}{item.createdAt.includes('T') ? ` · ${new Date(item.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}</time><p>{item.text}</p><div className="activity-contacts">{item.kind === 'flag' ? <small>Flag change</small> : item.contacts.length ? item.contacts.map(contact => <span key={contact.id} title={[contact.role,contact.email,contactStatusLabel(contact.status)].filter(Boolean).join(' · ')}>{contact.name || contact.email || contact.role}</span>) : <small>Older entry without contacts</small>}</div></div></article>)}</div> : <div className="activity-empty"><MessageSquare size={25}/><p>No notes yet</p><span>Record the first conversation.</span></div>}
           <form className="comment-form" onSubmit={addComment}>
             <fieldset className="comment-contacts"><legend>Participants · select at least one</legend>{eligibleContacts.length ? eligibleContacts.map(contact => <label key={contact.id}><input type="checkbox" checked={commentContactIds.includes(contact.id)} onChange={e => setCommentContacts(ids => e.target.checked ? [...ids, contact.id] : ids.filter(id => id !== contact.id))} disabled={saving || detailLoading}/><span>{contact.name || contact.email || contact.role}<small>{[contact.role, contact.email, contactStatusLabel(contact.status)].filter(Boolean).join(' · ')}</small></span></label>) : <p>First <button type="button" className="text-button" onClick={() => setDetailTab('contacts')}>add a contact</button> in the «Contacts».</p>}</fieldset>
             <textarea aria-label="New note" placeholder="What was discussed?" value={comment} onChange={e => setComment(e.target.value)} rows={3}/><button type="submit" className="primary-button" disabled={!comment.trim() || !commentContactIds.length || saving || detailLoading}>{saving ? <LoaderCircle size={14} className="spin"/> : <Plus size={14}/>}Add note</button></form>
@@ -593,6 +638,8 @@ export default function App() {
     {modal==='globe'&&<Modal title={`Geography · ${bootstrap.company.name}`} className="globe-modal" onClose={()=>setModal(null)}><ClientGlobe expanded selected={selected} refresh={refreshKey} query={queryString()} onOpen={async id=>{setModal(null);await openRelated(id);}}/></Modal>}
     {modal==='profile'&&<Modal title="Local user" onClose={()=>setModal(null)}><form className="create-form" onSubmit={e=>{e.preventDefault();const name=userName.trim()||'Local user';setUserName(name);localStorage.setItem('leader.userName',name);setModal(null);}}><label>Display name<input value={userName} maxLength={80} onChange={e=>setUserName(e.target.value)}/></label><p>Local profile for this browser. Cloud sign-in is not used.</p><button className="primary-button">Save</button></form></Modal>}
     {modal==='gameTokens'&&<Modal title="Choose a game piece" className="game-token-modal" onClose={()=>setModal(null)}><GameTokenGallery selectedId={gameTokenId} onSelect={id=>{setGameTokenId(id);localStorage.setItem('leader.gameToken',id);setModal(null);}}/></Modal>}
+    {modal==='listExport'&&<ListExportModal count={total} busy={exportingList} onClose={()=>setModal(null)} onExport={exportCurrentList}/>}
+    {modal==='listImport'&&<ListImportModal lists={bootstrap.lists} token={bootstrap.csrfToken} company={bootstrap.company.name} onClose={()=>setModal(null)} onImported={result=>{setModal(null);setRefreshKey(k=>k+1);void loadBootstrap();setToast(`Imported ${result.created.toLocaleString('en-GB')} cards · ${result.skipped} already existed${result.omittedLinks ? ` · ${result.omittedLinks} unavailable links omitted` : ''}.`);}}/>}
     {modal === 'companies' && <CompaniesModal bootstrap={bootstrap} onClose={() => setModal(null)} onChanged={()=>loadBootstrap()} onConnected={company => switchCompany(company.id)}/>}
 
     {modal === 'archive' && selected && <Modal title="Move to archive?" onClose={() => setModal(null)}><p>Card «{selected.title}» will remain in the local database. It can be restored through the connector.</p>{dirty && <p className="error-message">Unsaved card changes will be discarded.</p>}<div className="modal-actions"><button className="secondary-button" onClick={() => setModal(null)}>Cancel</button><button className="primary-button" onClick={archiveCard}>Archive</button></div></Modal>}
@@ -601,6 +648,55 @@ export default function App() {
     {modal === 'about' && <Modal title="About Leader" onClose={() => setModal(null)} className="about-modal"><div className="about-brand"><div className="about-logo"><LeaderLogo /></div><div><strong>Leader<span>.</span></strong><p>of the lead-free world</p></div></div><dl className="about-version"><dt>Version</dt><dd>0.2.0 · local prototype</dd><dt>Concept and product</dt><dd>Based on your requirements</dd><dt>Development</dt><dd>With OpenAI Codex</dd></dl><div className="about-info"><Database size={21}/><div><h3>{bootstrap.company.name}</h3><p>Each connected company has a separate database of cards, lists, tags, and history.</p></div></div>{bootstrap.demo && <div className="demo-notice">Demo companies and contacts are fictional.</div>}<button className="primary-button about-close" onClick={() => setModal(null)}>Close</button></Modal>}
     {toast && <div className="toast" role="status"><Check size={16}/><span>{toast}</span><IconButton label="Dismiss notification" onClick={() => setToast('')}><X size={14}/></IconButton></div>}
   </div>;
+}
+
+function ListExportModal({count,busy,onClose,onExport}:{count:number;busy:boolean;onClose:()=>void;onExport:(options:{includeDescription:boolean;includeHistory:boolean})=>Promise<void>}) {
+  const [includeDescription,setIncludeDescription]=useState(true);
+  const [includeHistory,setIncludeHistory]=useState(true);
+  const hasSavePicker = typeof (window as Window & { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
+  return <Modal title="List export" onClose={()=>{if(!busy)onClose();}}><form className="create-form" onSubmit={event=>{event.preventDefault();void onExport({includeDescription,includeHistory});}}>
+    <p className="form-intro">Export every card in the current list, filter, or search result ({count.toLocaleString('en-GB')} cards) as a Leader JSON file.</p>
+    <label className="list-transfer-check"><input type="checkbox" checked={includeDescription} onChange={event=>setIncludeDescription(event.target.checked)} disabled={busy}/> Include “About customer”</label>
+    <label className="list-transfer-check"><input type="checkbox" checked={includeHistory} onChange={event=>setIncludeHistory(event.target.checked)} disabled={busy}/> Include conversation history</label>
+    <p className="form-hint">With both unchecked, the file contains company and contact details without these internal notes.</p>
+    <p className="form-hint">{hasSavePicker ? 'Choose the save location in the browser dialog.' : 'This browser saves to its configured Downloads location. Open Leader in Chrome or Edge to choose a folder for each export.'}</p>
+    <div className="modal-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="primary-button" disabled={busy}>{busy?<LoaderCircle size={15} className="spin"/>:<Download size={15}/>}Export JSON</button></div>
+  </form></Modal>;
+}
+
+function ListImportModal({lists,token,company,onClose,onImported}:{lists:ClientList[];token:string;company:string;onClose:()=>void;onImported:(result:{created:number;skipped:number;omittedLinks:number})=>void}) {
+  const [bundle,setBundle]=useState<{format:string;version:number;cards:unknown[];included?:{description?:boolean;history?:boolean}}|null>(null);
+  const [fileName,setFileName]=useState('');
+  const [mode,setMode]=useState<'preserve'|'target'>('preserve');
+  const [targetListId,setTargetListId]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const permanentLists=lists.filter(list=>Boolean(permanentListTypes[list.name]));
+  const selectFile=async(file?:File)=>{
+    setBundle(null);setFileName('');setError('');
+    if(!file)return;
+    try{
+      if(file.size>100*1024*1024)throw new Error('Maximum file size is 100 MB.');
+      const data=JSON.parse(await file.text());
+      if(data.format!=='leader-list'||data.version!==1||!Array.isArray(data.cards)||data.cards.length>10000)throw new Error('Select a Leader list export with up to 10,000 cards.');
+      setBundle(data);setFileName(file.name);
+    }catch(cause){setError(errorText(cause));}
+  };
+  const submit=async(event:FormEvent)=>{
+    event.preventDefault();if(!bundle||busy||mode==='target'&&!targetListId)return;
+    setBusy(true);setError('');
+    try{const result=await request<{created:number;skipped:number;omittedLinks:number}>('/lists/import',{method:'POST',token,body:{bundle,mode,targetListId:mode==='target'?targetListId:undefined}});onImported(result);}
+    catch(cause){setError(errorText(cause));setBusy(false);}
+  };
+  return <Modal title="List import" onClose={()=>{if(!busy)onClose();}}><form className="create-form" onSubmit={submit}>
+    <p className="form-intro">Import a Leader list JSON file into {company}. Existing card IDs will be skipped; new cards keep an Imported marker until their first saved edit.</p>
+    <label className="import-file"><span><Upload size={16}/>Leader list JSON</span><input type="file" accept=".json,application/json" disabled={busy} onChange={event=>void selectFile(event.target.files?.[0])}/></label>
+    {bundle&&<div className="import-preview"><strong>{fileName}</strong><br/>{bundle.cards.length.toLocaleString('en-GB')} cards{bundle.included?.description===false?' · About customer excluded':''}{bundle.included?.history===false?' · History excluded':''}</div>}
+    <fieldset className="list-transfer-mode"><legend>Where should cards go?</legend><label><input type="radio" name="importMode" checked={mode==='preserve'} onChange={()=>setMode('preserve')}/> Use each card’s category and distribute among the four permanent lists</label><label><input type="radio" name="importMode" checked={mode==='target'} onChange={()=>setMode('target')}/> Set every card’s category from one target list</label></fieldset>
+    {mode==='target'&&<label>Target list<select value={targetListId} required onChange={event=>setTargetListId(event.target.value)}><option value="">Choose a permanent list</option>{permanentLists.map(list=><option key={list.id} value={list.id}>{displayListName(list.name)}</option>)}</select></label>}
+    {error&&<p className="error-message" role="alert">{error}</p>}
+    <div className="modal-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="primary-button" disabled={!bundle||busy||mode==='target'&&!targetListId}>{busy?<LoaderCircle size={15} className="spin"/>:<Upload size={15}/>}Import cards</button></div>
+  </form></Modal>;
 }
 
 function TuxIcon({size=16}:{size?:number}) {

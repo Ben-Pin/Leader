@@ -53,6 +53,7 @@ export function createHttpApp({ store, companies, token = randomBytes(32).toStri
   });
   app.get('/api/bootstrap', (request, response) => response.json({ ...request.store.bootstrap(), csrfToken: token, company: request.company, companies: companies?.listCompanies() || [request.company] }));
   app.get('/api/cards', (request, response) => response.json(request.store.listCards(request.query)));
+  app.post('/api/lists/import', (request, response) => response.json(request.store.importList(request.body)));
   app.get('/api/geography', (request,response) => response.json(request.store.geography(request.query)));
   app.post('/api/cards/retag-quarters', (request, response) => response.json(request.store.syncContactQuarters()));
   app.get('/api/cards/:id', (request, response) => response.json(request.store.getCard(request.params.id)));

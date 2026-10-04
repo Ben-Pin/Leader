@@ -5,6 +5,7 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 `Card`: `{id,listId,title,description,company,country,contactName,email,lastContact,dueDate,status,priority,completed,starred,archived,version,createdAt,updatedAt,tags,checklist,activity}`.
 
 - `status`: `lead | contacted | qualified | proposal | client`.
+- `importedPending`: boolean marker for a list-imported card, cleared by its first saved edit.
 - `priority`: integer 0 (none), 1 (low), 2 (medium), 3 (high).
 - `lastContact`, `dueDate`: `YYYY-MM-DD` or empty/null.
 - `tags`: `[{id,name,color}]`; derived quarter tag appears first (id `quarter:YYYY-Q`).
@@ -21,8 +22,10 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 - GET `/bootstrap` -> `{lists,tags,stats:{total,active,completed,starred},csrfToken,demo:true}`.
 - GET `/cards?listId=&tag=&q=&view=all|active|completed|starred&sort=updated|contact|title&limit=100&offset=0` -> `{items,total,limit,offset}`. `tag` is tag id or `quarter:YYYY-Q`.
 - GET `/cards/:id` -> Card.
+- POST `/lists/import` `{bundle,mode,targetListId?}` -> `{created,skipped,omittedLinks}`. `bundle` is a version-1 `leader-list` export with at most 10,000 cards; `mode` is `preserve` (route by each card's `accountType`) or `target` (use the permanent `targetListId` and its category). The operation is atomic, preserves supplied notes/history and tags, skips existing card IDs, and marks newly imported cards until their first saved edit. Links to unavailable distributors are omitted and counted.
 - POST `/cards` body partial Card, required title/listId -> Card.
 - PATCH `/cards/:id` body fields to change + required version -> Card.
+- PATCH may include `flagEvents:[{kind,active,comment,happenedAt}]` for every unsaved flag toggle; the final event states must match the saved flags. Without this array, a flag state change records a single dated event automatically. History entries include `kind: note | flag`. Flag events do not require contact participants.
 - POST `/cards/:id/comments` `{text,version,contactIds}` -> Card.
 - POST `/lists` `{name,color}` -> List.
 - POST `/tags` `{name,color}` -> Tag.

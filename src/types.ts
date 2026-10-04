@@ -1,7 +1,7 @@
 export interface Tag { id: string; name: string; color: string; category?: string | null; count?: number }
 export interface ClientList { id: string; name: string; color: string; count: number }
 export interface ChecklistItem { id: string; text: string; done: boolean }
-export interface Activity { id: string; text: string; createdAt: string; contacts: Contact[] }
+export interface Activity { id: string; text: string; createdAt: string; contacts: Contact[]; kind: 'note' | 'flag' }
 export type LeadStatus = 'lead' | 'contacted' | 'qualified' | 'proposal' | 'client';
 export type FlagKey = 'inQuote' | 'logisticsIssue' | 'administrativeIssue' | 'swIssue' | 'hwIssue';
 export type CardFlags = Record<FlagKey, { active: boolean; comment: string; activatedAt?: string | null }>;
@@ -16,7 +16,7 @@ export interface Card {
   contacts: Contact[];
   contactQuarter: string | null;
   dueDate: string | null; status: LeadStatus; priority: number; completed: boolean;
-  starred: boolean; starredAt: string | null; archived: boolean; version: number; createdAt: string; updatedAt: string;
+  starred: boolean; starredAt: string | null; archived: boolean; importedPending: boolean; version: number; createdAt: string; updatedAt: string;
   tags: Tag[]; checklist: ChecklistItem[]; activity: Activity[];
   flags: CardFlags;
   accountType: AccountType; distributorIds: string[]; distributors: RelatedCard[]; clientCount: number;
