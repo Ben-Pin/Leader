@@ -13,9 +13,16 @@ export class StoreError extends Error {
   }
 }
 
-const stages = new Set(['lead', 'contacted', 'qualified', 'proposal', 'client']);
-const permanentLists = new Set(['Customers', 'Prospects', 'Partners', 'Distributors', 'Клиенты', 'Потенциальные', 'Партнеры', 'Дистрибьюторы']);
-const listByAccountType = { unspecified: ['Prospects', 'Потенциальные'], client: ['Customers', 'Клиенты'], partner: ['Partners', 'Партнеры'], distributor: ['Distributors', 'Дистрибьюторы'] };
+const stages = new Set(['contact', 'evaluation', 'rampUp', 'massProduction', 'legacy']);
+// Old "client" describes an account relationship, not confirmed production.
+const legacyStages = { lead: 'contact', contacted: 'contact', qualified: 'evaluation', proposal: 'evaluation', client: 'contact' };
+const normalizeStage = value => legacyStages[value] || value;
+const listByAccountType = { lead: ['Leads'], unspecified: ['Prospects', 'Потенциальные'], opportunity: ['Opportunities'], client: ['Customers', 'Клиенты'], partner: ['Partners', 'Партнеры'], distributor: ['Agents', 'Distributors', 'Дистрибьюторы'] };
+const permanentOrder = ['Leads', 'Prospects', 'Opportunities', 'Customers', 'Partners', 'Agents'];
+const permanentColors = ['#D65C59', '#DC913D', '#C4AA35', '#4E9F69', '#4C83CB', '#9765CE'];
+const permanentLists = new Set(Object.values(listByAccountType).flat());
+const typeForList = name => Object.entries(listByAccountType).find(([, names]) => names.includes(name))?.[0];
+const canonicalListName = name => listByAccountType[typeForList(name)]?.[0] || name;
 const tagCategories = new Set(['Countries', 'Time', 'Product', 'Stage', 'Application', 'Other']);
 export const contactStatuses = ['active', 'main', 'inactive', 'disturbing', 'useful', 'decisions'];
 export const flagKeys = ['inQuote', 'logisticsIssue', 'administrativeIssue', 'swIssue', 'hwIssue'];
@@ -118,7 +125,30 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     if (!db.prepare('PRAGMA table_info(activity)').all().some(c => c.name === 'kind')) {
       db.exec("ALTER TABLE activity ADD COLUMN kind TEXT NOT NULL DEFAULT 'note' CHECK(kind IN ('note','flag'))");
     }
-    db.exec('PRAGMA user_version=10; COMMIT');
+    const cardSchema = db.prepare("SELECT sql FROM sqlite_master WHERE name='cards'").get().sql;
+    if (!cardSchema.includes("'opportunity'")) {
+      // Add a new constrained column without rebuilding the referenced parent table.
+      db.exec(`ALTER TABLE cards RENAME COLUMN account_type TO legacy_account_type;
+        ALTER TABLE cards ADD COLUMN account_type TEXT NOT NULL DEFAULT 'unspecified'
+          CHECK(account_type IN ('lead','unspecified','opportunity','client','partner','distributor'));
+        UPDATE cards SET account_type=legacy_account_type;`);
+    }
+    const activitySchema = db.prepare("SELECT sql FROM sqlite_master WHERE name='activity'").get().sql;
+    if (!activitySchema.includes("'list'")) {
+      db.exec(`CREATE TABLE activity_v11 (id TEXT PRIMARY KEY, card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+        text TEXT NOT NULL, created_at TEXT NOT NULL, contacts TEXT NOT NULL DEFAULT '[]',
+        kind TEXT NOT NULL DEFAULT 'note' CHECK(kind IN ('note','flag','list')));
+        INSERT INTO activity_v11 SELECT id,card_id,text,created_at,contacts,kind FROM activity;
+        DROP TABLE activity; ALTER TABLE activity_v11 RENAME TO activity;
+        CREATE INDEX idx_activity_card ON activity(card_id,created_at DESC);`);
+    }
+    if (!cardSchema.includes("'massProduction'")) {
+      db.exec(`ALTER TABLE cards RENAME COLUMN status TO legacy_status;
+        ALTER TABLE cards ADD COLUMN status TEXT NOT NULL DEFAULT 'contact'
+          CHECK(status IN ('contact','evaluation','rampUp','massProduction','legacy'));
+        UPDATE cards SET status=CASE legacy_status WHEN 'qualified' THEN 'evaluation' WHEN 'proposal' THEN 'evaluation' ELSE 'contact' END;`);
+    }
+    db.exec('PRAGMA user_version=12; COMMIT');
   } catch (error) { db.exec('ROLLBACK'); db.close(); throw error; }
   const statements = new Map();
   const sql = (query) => {
@@ -172,7 +202,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       result.contactQuarter = input.contactQuarter;
     }
     if ('accountType' in input) {
-      if (!['unspecified', 'client', 'distributor', 'partner'].includes(input.accountType)) throw new StoreError('Invalid account type.');
+      if (!Object.hasOwn(listByAccountType, input.accountType)) throw new StoreError('Invalid account type.');
       result.accountType = input.accountType;
     }
     if ('distributorIds' in input) {
@@ -210,8 +240,8 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     }
     for (const key of ['lastContact', 'dueDate']) if (key in input) result[key] = date(input[key], key);
     if ('status' in input) {
-      if (!stages.has(input.status)) throw new StoreError('Unknown customer stage.');
-      result.status = input.status;
+      if (!stages.has(normalizeStage(input.status))) throw new StoreError('Unknown project stage.');
+      result.status = normalizeStage(input.status);
     }
     if ('priority' in input) {
       if (!Number.isInteger(input.priority) || input.priority < 0 || input.priority > 3) throw new StoreError('Priority must be between 0 and 3.');
@@ -308,12 +338,21 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     if (flagKeys.includes(view)) { where.push('EXISTS (SELECT 1 FROM card_flags f WHERE f.card_id=c.id AND f.kind=? AND f.active=1)'); args.push(view); }
     if (view === 'completed') where.push('c.completed=1');
     if (view === 'starred') where.push('c.starred=1');
+    if (query.status !== undefined && query.status !== '') {
+      if (!stages.has(normalizeStage(query.status))) throw new StoreError('Unknown project stage.');
+      where.push('c.status=?'); args.push(normalizeStage(query.status));
+    }
+    if (query.priority !== undefined && query.priority !== '') {
+      const priority = typeof query.priority === 'string' && /^[0-3]$/.test(query.priority) ? Number(query.priority) : query.priority;
+      if (!Number.isInteger(priority) || priority < 0 || priority > 3) throw new StoreError('Invalid priority filter.');
+      where.push('c.priority=?'); args.push(priority);
+    }
     if (query.listId) { where.push('c.list_id=?'); args.push(string(query.listId, 'listId', 100, true)); }
     if (query.country) { where.push('(leader_lower(c.country)=? OR leader_lower(c.secondary_country)=?)'); const country=string(query.country,'country',120,true).toLocaleLowerCase('ru'); args.push(country,country); }
     if (query.distributorId) { where.push('EXISTS (SELECT 1 FROM card_distributors d WHERE d.client_id=c.id AND d.distributor_id=?)'); args.push(string(query.distributorId, 'distributorId', 100, true)); }
     if (query.accountType === 'channel') where.push("c.account_type IN ('distributor','partner')");
     else if (query.accountType) {
-      if (!['client','distributor','partner','unspecified'].includes(query.accountType)) throw new StoreError('Invalid account type filter.');
+      if (!Object.hasOwn(listByAccountType, query.accountType)) throw new StoreError('Invalid account type filter.');
       where.push('c.account_type=?'); args.push(query.accountType);
     }
     if (query.tag) {
@@ -343,9 +382,10 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     createCard(input, restoredId) {
       return transaction(() => {
         const value = validate(input, true);
+        value.accountType ??= typeForList(sql('SELECT name FROM lists WHERE id=?').get(value.listId).name);
         const id = restoredId === undefined ? randomUUID() : string(restoredId, 'card.id', 100, true);
         const now = new Date().toISOString();
-        sql(`INSERT INTO cards(id,list_id,title,description,company,country,contact_name,email,last_contact,due_date,status,priority,completed,starred,archived,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id, value.listId, value.title, value.description ?? '', value.company ?? '', value.country ?? '', value.contactName ?? '', value.email ?? '', value.lastContact ?? null, value.dueDate ?? null, value.status ?? 'lead', value.priority ?? 0, Number(value.completed ?? false), Number(value.starred ?? false), Number(value.archived ?? false), now, now);
+        sql(`INSERT INTO cards(id,list_id,title,description,company,country,contact_name,email,last_contact,due_date,status,priority,completed,starred,archived,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(id, value.listId, value.title, value.description ?? '', value.company ?? '', value.country ?? '', value.contactName ?? '', value.email ?? '', value.lastContact ?? null, value.dueDate ?? null, value.status ?? 'contact', value.priority ?? 0, Number(value.completed ?? false), Number(value.starred ?? false), Number(value.archived ?? false), now, now);
         if (value.accountType) sql('UPDATE cards SET account_type=? WHERE id=?').run(value.accountType, id);
         if (value.contactQuarter) sql('UPDATE cards SET contact_quarter=? WHERE id=?').run(value.contactQuarter, id);
         if (value.secondaryCountry) sql('UPDATE cards SET secondary_country=? WHERE id=?').run(value.secondaryCountry, id);
@@ -359,7 +399,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         requireObject(input);
         const row = findCard(id);
         checkVersion(row, input.version);
-        const { flagEvents, ...cardInput } = input;
+        const { flagEvents, listEvents, ...cardInput } = input;
         const value = validate(cardInput);
         const previousFlags = Object.fromEntries(flagKeys.map(kind => [kind, Boolean(sql('SELECT active FROM card_flags WHERE card_id=? AND kind=?').get(id, kind)?.active)]));
         const transitions = [];
@@ -380,10 +420,29 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         } else if (value.flags) {
           for (const [kind, flag] of Object.entries(value.flags)) if (flag.active !== previousFlags[kind]) transitions.push({ kind, active: flag.active, comment: flag.comment, happenedAt: new Date().toISOString() });
         }
-        if (value.accountType && value.accountType !== row.account_type) {
+        if (value.listId && (value.listId !== row.list_id || (Array.isArray(listEvents) && listEvents.length))) {
+          const targetType = typeForList(sql('SELECT name FROM lists WHERE id=?').get(value.listId).name);
+          if (targetType && value.accountType && value.accountType !== row.account_type && value.accountType !== targetType) throw new StoreError('Account category does not match the target list.');
+          value.accountType = targetType || value.accountType || row.account_type;
+        } else if (value.accountType && value.accountType !== row.account_type) {
           const target = listByAccountType[value.accountType].map(name => sql('SELECT id FROM lists WHERE name=? COLLATE NOCASE').get(name)).find(Boolean);
           if (target) value.listId = target.id;
         }
+        const moves = [];
+        const finalList = value.listId || row.list_id;
+        if (listEvents !== undefined) {
+          if (!Array.isArray(listEvents) || listEvents.length > 100) throw new StoreError('Invalid list history.');
+          let current = row.list_id;
+          for (const event of listEvents) {
+            requireObject(event);
+            if (event.fromListId !== current || event.toListId === current || !sql('SELECT id FROM lists WHERE id=?').get(string(event.toListId, 'toListId', 100, true))) throw new StoreError('Invalid list transition.');
+            const happenedAt = string(event.happenedAt, 'list date', 40, true);
+            if (!/^\d{4}-\d\d-\d\dT/.test(happenedAt) || !Number.isFinite(Date.parse(happenedAt))) throw new StoreError('Invalid list date.');
+            moves.push({ fromListId: current, toListId: event.toListId, happenedAt });
+            current = event.toListId;
+          }
+          if (current !== finalList) throw new StoreError('List history does not match the saved list.');
+        } else if (finalList !== row.list_id) moves.push({ fromListId: row.list_id, toListId: finalList, happenedAt: new Date().toISOString() });
         const entries = Object.entries(value).filter(([key]) => key in columns);
         const clause = entries.map(([key]) => `${columns[key]}=?`);
         const args = entries.map(([, val]) => typeof val === 'boolean' ? Number(val) : val);
@@ -394,6 +453,12 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
         for (const event of transitions) {
           const text = `${flagLabels[event.kind]} ${event.active ? 'enabled' : 'disabled'}\nComment: ${event.comment || '—'}`;
           sql("INSERT INTO activity(id,card_id,text,created_at,contacts,kind) VALUES(?,?,?,?,'[]','flag')").run(randomUUID(), id, text, event.happenedAt);
+        }
+        for (const event of moves) {
+          const from = canonicalListName(sql('SELECT name FROM lists WHERE id=?').get(event.fromListId).name);
+          const to = canonicalListName(sql('SELECT name FROM lists WHERE id=?').get(event.toListId).name);
+          sql("INSERT INTO activity(id,card_id,text,created_at,contacts,kind) VALUES(?,?,?,?,'[]','list')")
+            .run(randomUUID(), id, `${from} → ${to}`, event.happenedAt);
         }
         return service.getCard(id);
       });
@@ -431,6 +496,28 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       });
     },
     createList(input) { return createNamed('lists', input); },
+    ensurePermanentLists() {
+      return transaction(() => {
+        for (const [type, names] of Object.entries(listByAccountType)) {
+          let canonical = sql('SELECT id,name FROM lists WHERE name=? COLLATE NOCASE').get(names[0]);
+          for (const alias of names.slice(1)) {
+            const old = sql('SELECT id FROM lists WHERE name=? COLLATE NOCASE').get(alias);
+            if (!old) continue;
+            if (canonical) {
+              sql('UPDATE cards SET list_id=? WHERE list_id=?').run(canonical.id, old.id);
+              sql('DELETE FROM lists WHERE id=?').run(old.id);
+            } else {
+              sql('UPDATE lists SET name=? WHERE id=?').run(names[0], old.id);
+              canonical = { id: old.id, name: names[0] };
+            }
+          }
+          const index = permanentOrder.indexOf(names[0]);
+          canonical ||= service.createList({ name: names[0], color: permanentColors[index] });
+          sql('UPDATE lists SET color=? WHERE id=?').run(permanentColors[index], canonical.id);
+          sql('UPDATE cards SET account_type=? WHERE list_id=? AND account_type<>?').run(type, canonical.id, type);
+        }
+      });
+    },
     createTag(input) { return createNamed('tags', input); },
     updateTag(id, input) {
       requireObject(input);
@@ -470,7 +557,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       const limit = integer(query.limit, 100, 1, 200, 'limit');
       const offset = integer(query.offset, 0, 0, Number.MAX_SAFE_INTEGER, 'offset');
       const { condition, args } = cardFilter(query);
-      const sorts = { updated: 'c.updated_at DESC,c.id', contact: "COALESCE(c.last_contact,substr(c.contact_quarter,1,4)||'-'||printf('%02d',CAST(substr(c.contact_quarter,-1) AS INTEGER)*3)||'-00') DESC,c.title COLLATE NOCASE,c.id", title: 'leader_lower(c.title),c.id', titleDesc: 'leader_lower(c.title) DESC,c.id' };
+      const sorts = { priority: 'c.priority DESC,leader_lower(c.title),c.id', updated: 'c.updated_at DESC,c.id', contact: "COALESCE(c.last_contact,substr(c.contact_quarter,1,4)||'-'||printf('%02d',CAST(substr(c.contact_quarter,-1) AS INTEGER)*3)||'-00') DESC,c.title COLLATE NOCASE,c.id", title: 'leader_lower(c.title),c.id', titleDesc: 'leader_lower(c.title) DESC,c.id' };
       const sort = query.sort || 'updated';
       if (!Object.hasOwn(sorts, sort)) throw new StoreError('Unknown sort order.');
       const total = sql(`SELECT COUNT(*) AS total FROM cards c WHERE ${condition}`).get(...args).total;
@@ -479,6 +566,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
     },
     bootstrap() {
       const lists = sql('SELECT l.id,l.name,l.color,COUNT(c.id) AS count FROM lists l LEFT JOIN cards c ON c.list_id=l.id AND c.archived=0 GROUP BY l.id ORDER BY l.rowid').all();
+      lists.sort((a,b) => (permanentOrder.indexOf(canonicalListName(a.name)) + 1 || 100) - (permanentOrder.indexOf(canonicalListName(b.name)) + 1 || 100));
       const tags = sql('SELECT t.id,t.name,t.color,t.category,COUNT(c.id) AS count FROM tags t LEFT JOIN card_tags ct ON ct.tag_id=t.id LEFT JOIN cards c ON c.id=ct.card_id AND c.archived=0 GROUP BY t.id ORDER BY t.name COLLATE NOCASE').all();
       const quarters = sql("SELECT CASE WHEN last_contact IS NOT NULL THEN substr(last_contact,1,4) || '-' || ((CAST(substr(last_contact,6,2) AS INTEGER)+2)/3) ELSE contact_quarter END AS quarter, COUNT(*) AS count FROM cards WHERE archived=0 AND (last_contact IS NOT NULL OR contact_quarter IS NOT NULL) GROUP BY quarter ORDER BY quarter DESC").all().map(row => ({ ...quarterTag(`${row.quarter.slice(0, 4)}-${String((Number(row.quarter.slice(-1)) - 1) * 3 + 1).padStart(2, '0')}-01`), count: row.count }));
       const stats = sql('SELECT COUNT(*) AS total,COALESCE(SUM(completed=0),0) AS active,COALESCE(SUM(completed=1),0) AS completed,COALESCE(SUM(starred=1),0) AS starred FROM cards WHERE archived=0').get();
@@ -504,7 +592,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       if (!['preserve', 'target'].includes(mode)) throw new StoreError('Choose how imported card categories are assigned.');
       const target = mode === 'target' ? sql('SELECT id,name FROM lists WHERE id=?').get(string(targetListId, 'targetListId', 100, true)) : null;
       const targetType = target && Object.entries(listByAccountType).find(([, names]) => names.includes(target.name))?.[0];
-      if (mode === 'target' && !targetType) throw new StoreError('Choose one of the four permanent lists as the target.');
+      if (mode === 'target' && !targetType) throw new StoreError('Choose one of the six permanent lists as the target.');
       const timestamp = value => {
         const text = string(value, 'timestamp', 40, true);
         if (!/^\d{4}-\d\d-\d\dT/.test(text) || !Number.isFinite(Date.parse(text))) throw new StoreError('Invalid history date.');
@@ -548,7 +636,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
             requireObject(entry);
             const contacts = entry.contacts === undefined ? [] : validate({ contacts: entry.contacts }).contacts;
             const kind = entry.kind ?? 'note';
-            if (!['note', 'flag'].includes(kind)) throw new StoreError('Invalid history event kind.');
+            if (!['note', 'flag', 'list'].includes(kind)) throw new StoreError('Invalid history event kind.');
             sql('INSERT INTO activity(id,card_id,text,created_at,contacts,kind) VALUES(?,?,?,?,?,?)')
               .run(string(entry.id, 'activity.id', 100, true), card.id, string(entry.text, 'activity.text', 10000, true), timestamp(entry.createdAt), JSON.stringify(contacts), kind);
           }
@@ -604,7 +692,7 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
             requireObject(entry);
             const contacts = entry.contacts === undefined ? [] : validate({contacts:entry.contacts}).contacts;
             const kind = entry.kind ?? 'note';
-            if (!['note', 'flag'].includes(kind)) throw new StoreError('Invalid history event kind.');
+            if (!['note', 'flag', 'list'].includes(kind)) throw new StoreError('Invalid history event kind.');
             sql('INSERT INTO activity(id,card_id,text,created_at,contacts,kind) VALUES(?,?,?,?,?,?)').run(string(entry.id, 'activity.id', 100, true), card.id, string(entry.text, 'activity.text', 10000, true), timestamp(entry.createdAt), JSON.stringify(contacts), kind);
           }
         }
@@ -648,5 +736,6 @@ export function createStore({ path = resolve('data/leader.sqlite'), seed = true 
       sql("INSERT INTO metadata(key,value) VALUES('initialized','true')").run();
     });
   }
+  if (seed || sql('SELECT name FROM lists').all().some(list => permanentLists.has(list.name))) service.ensurePermanentLists();
   return service;
 }

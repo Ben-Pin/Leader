@@ -31,7 +31,10 @@ export function createCompanyManager({ directory, seed = true }) {
     getCompany(id) { const { file, ...company } = getCompany(id); return company; },
     getStore(id) {
       const row = getCompany(id);
-      if (!stores.has(id)) stores.set(id, createStore({ path: resolve(directory, row.file), seed: id === 'demo' && seed }));
+      if (!stores.has(id)) {
+        const store = createStore({ path: resolve(directory, row.file), seed: id === 'demo' && seed });
+        store.ensurePermanentLists(); stores.set(id, store);
+      }
       return stores.get(id);
     },
     createCompany({ name }, bundle) {
@@ -41,7 +44,8 @@ export function createCompanyManager({ directory, seed = true }) {
       catalog.exec('BEGIN IMMEDIATE');
       try {
         if (catalog.prepare('SELECT id FROM companies WHERE name=? COLLATE NOCASE').get(name.trim())) throw new StoreError('A company with this name is already connected.', 409, 'DUPLICATE_COMPANY');
-        if (bundle) store.importData(bundle); else for (const [name,color] of [['Customers','#2563EB'],['Prospects','#8B5CF6'],['Partners','#059669'],['Distributors','#D97706']]) store.createList({ name, color });
+        if (bundle) store.importData(bundle);
+        store.ensurePermanentLists();
         catalog.prepare('INSERT INTO companies(id,name,file) VALUES(?,?,?)').run(id, name.trim(), file);
         catalog.exec('COMMIT'); stores.set(id, store);
         return { id, name: name.trim() };
@@ -58,7 +62,7 @@ export function createCompanyManager({ directory, seed = true }) {
   catalog.prepare('INSERT OR IGNORE INTO companies(id,name,file) VALUES(?,?,?)').run('demo', 'Demo', 'leader.sqlite');
   for (const [id, name] of [['clab', 'Clab'], ['brothers-in-arms', 'BrothersInArms']]) {
     const result = catalog.prepare('INSERT OR IGNORE INTO companies(id,name,file) VALUES(?,?,?)').run(id, name, `companies/${id}.sqlite`);
-    if (result.changes) for (const [name,color] of [['Customers','#2563EB'],['Prospects','#8B5CF6'],['Partners','#059669'],['Distributors','#D97706']]) manager.getStore(id).createList({ name, color });
+    if (result.changes) manager.getStore(id).ensurePermanentLists();
   }
   return manager;
 }

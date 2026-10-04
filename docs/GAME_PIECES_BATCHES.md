@@ -2,7 +2,7 @@
 
 The numbered contact sheets are source references for a one-time manual production step. Each piece is generated as its own transparent PNG with the built-in image generation tool, then copied into `public/tokens/`. Leader only reads those files. The final common canvas is 1254×1254 pixels; the prompt aims for approximately 7% transparent margin and the shared gallery CSS handles display size.
 
-The contact sheets for batches 2–5 are retained under `docs/token-source-sheets/` so pieces can be prepared without relying on a machine-specific Downloads folder. Structural stands or pots already pictured in a reference are part of that figurine; do not add a generic circular pedestal.
+The contact sheets for batches 2–6 are retained under `docs/token-source-sheets/` so pieces can be prepared without relying on a machine-specific Downloads folder. Structural stands or pots already pictured in a reference are part of that figurine; do not add a generic circular pedestal.
 
 ## Batch 1 — Colorful Collectible Figurine Grid
 
@@ -88,10 +88,27 @@ Source: `docs/token-source-sheets/batch-5-vintage-metal-figurine-collection.png`
 | 9 | Mars rover | `public/tokens/mars-rover.png` |
 | 10 | Armored soldier | `public/tokens/armored-soldier.png` |
 
+## Batch 6 — Steampunk Tin Toy Figurine Collection
+
+Source: `docs/token-source-sheets/batch-6-steampunk-tin-toy-figurine-collection.png`. All ten are separate transparent 1254×1254 PNGs and available in Leader. Number 1 is a samurai fox, as corrected by the user. The frog's illustrated lily pad remains part of the original figurine; no generic pedestal was added.
+
+| Number | Piece | File |
+| --- | --- | --- |
+| 1 | Samurai fox | `public/tokens/samurai-fox.png` |
+| 2 | Mechanical bee | `public/tokens/mechanical-bee.png` |
+| 3 | Eggplant mascot | `public/tokens/eggplant-mascot.png` |
+| 4 | Blue whale | `public/tokens/blue-whale.png` |
+| 5 | Bamboo panda | `public/tokens/bamboo-panda.png` |
+| 6 | Mail truck | `public/tokens/mail-truck.png` |
+| 7 | Steampunk snail | `public/tokens/steampunk-snail.png` |
+| 8 | Frog king | `public/tokens/frog-king.png` |
+| 9 | Vintage radio | `public/tokens/vintage-radio.png` |
+| 10 | Wise tortoise | `public/tokens/wise-tortoise.png` |
+
 ## Final prompt set
 
 For each numbered item, the built-in image generation tool received the relevant whole contact sheet as an exact visual reference and this prompt, with the bracketed subject and number replaced for that item:
 
 > Use case: background-extraction. Asset: one final collectible game figurine PNG for the user's separate one-off asset preparation. The attached numbered contact sheet is the exact visual reference. Extract ONLY figurine number [number, subject] and refine it into a clean, complete, standalone miniature. Preserve its original pose, silhouette, hand-painted worn enamel texture, metallic accents, color palette and proportions. Place on a genuinely transparent square canvas, centered, with the COMPLETE figurine occupying about 86% of both its relevant width/height and a consistent 7% transparent margin, matching the other pieces in this batch. No tabletop, gray backdrop, cast shadow, number, label, other figurines, new pedestal, or text.
 
-The same composition and transparency constraints were used for Batches 1, 2, 4, and 5, with each respective figurine's defining details named in its prompt. Tux used the dedicated cutout prompt recorded in `MASCOT.md`. The Batch 5 octopus had one additional edit prompt asking to mirror the completed figurine horizontally while preserving its texture, colors, proportions, and transparent canvas.
+The same composition and transparency constraints were used for Batches 1, 2, 4, 5, and 6, with each respective figurine's defining details named in its prompt. Batch 6 prompts additionally preserved the fox's red samurai armor, bee wings and six legs, eggplant limbs, whale water spout, panda bamboo, mail truck wheels, snail house shell, frog crown/cape/scepter/lily pad, radio knobs and wise tortoise beard/spectacles. Tux used the dedicated cutout prompt recorded in `MASCOT.md`. The Batch 5 octopus had one additional edit prompt asking to mirror the completed figurine horizontally while preserving its texture, colors, proportions, and transparent canvas.

@@ -4,7 +4,7 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 
 `Card`: `{id,listId,title,description,company,country,contactName,email,lastContact,dueDate,status,priority,completed,starred,archived,version,createdAt,updatedAt,tags,checklist,activity}`.
 
-- `status`: `lead | contacted | qualified | proposal | client`.
+- `status`: `contact | evaluation | rampUp | massProduction | legacy` (project stage, independent of list/category). `massProduction` is the stable internal key displayed as **Production**.
 - `importedPending`: boolean marker for a list-imported card, cleared by its first saved edit.
 - `priority`: integer 0 (none), 1 (low), 2 (medium), 3 (high).
 - `lastContact`, `dueDate`: `YYYY-MM-DD` or empty/null.
@@ -13,19 +13,21 @@ All responses JSON. Errors: `{error: string, code?: string}` with appropriate HT
 - `activity`: `[{id,text,createdAt,contacts}]`, newest first.
 - Input tags use `tagIds: string[]`. Quarter tags must not be submitted in tagIds.
 - `flags`: `{inQuote:{active,comment}, logisticsIssue:{active,comment}, administrativeIssue:{active,comment}, swIssue:{active,comment}, hwIssue:{active,comment}}`. Updates may supply any subset of flag keys. Comments are single-line, at most 300 characters. Clearing a flag does not implicitly erase its comment.
-- `accountType`: `unspecified | client | distributor | partner`; `distributorIds`: up to 20 same-company partner/distributor IDs. Read responses include `distributors` summaries and non-archived `clientCount`. Search accepts `distributorId` and `accountType` (including `channel` for both partner types). Links reject self-reference and cycles and survive export/import.
+- `accountType`: `lead | unspecified | opportunity | client | partner | distributor`, corresponding to Leads, Prospects, Opportunities, Customers, Partners, Agents in that order. The old internal keys `unspecified` and `distributor` remain compatible with exports and links. `distributorIds`: up to 20 same-company agent/partner IDs. Read responses include `distributors` summaries and non-archived `clientCount`. Search accepts `distributorId` and `accountType` (including `channel` for both partner types). Links reject self-reference and cycles and survive export/import.
 - `contactQuarter`: optional `YYYY-Q` fallback when an exact contact day is unknown. `lastContact` takes precedence. Fallback tags are displayed first, colored and filterable, without fabricating a date.
 - `List`: `{id,name,color,count}`; `Tag`: `{id,name,color,count}`.
 
 ## HTTP
 
 - GET `/bootstrap` -> `{lists,tags,stats:{total,active,completed,starred},csrfToken,demo:true}`.
-- GET `/cards?listId=&tag=&q=&view=all|active|completed|starred&sort=updated|contact|title&limit=100&offset=0` -> `{items,total,limit,offset}`. `tag` is tag id or `quarter:YYYY-Q`.
+- GET `/cards?listId=&tag=&q=&status=&priority=&view=all|active|completed|starred&sort=updated|contact|title|titleDesc|priority&limit=100&offset=0` -> `{items,total,limit,offset}`. `tag` is tag id or `quarter:YYYY-Q`. Priority filtering accepts 0–3 (0 selects unset priority); priority sorting orders 3 first with stable name/ID ties. Stage and priority filters also apply to geography and list export.
 - GET `/cards/:id` -> Card.
 - POST `/lists/import` `{bundle,mode,targetListId?}` -> `{created,skipped,omittedLinks}`. `bundle` is a version-1 `leader-list` export with at most 10,000 cards; `mode` is `preserve` (route by each card's `accountType`) or `target` (use the permanent `targetListId` and its category). The operation is atomic, preserves supplied notes/history and tags, skips existing card IDs, and marks newly imported cards until their first saved edit. Links to unavailable distributors are omitted and counted.
 - POST `/cards` body partial Card, required title/listId -> Card.
 - PATCH `/cards/:id` body fields to change + required version -> Card.
-- PATCH may include `flagEvents:[{kind,active,comment,happenedAt}]` for every unsaved flag toggle; the final event states must match the saved flags. Without this array, a flag state change records a single dated event automatically. History entries include `kind: note | flag`. Flag events do not require contact participants.
+- PATCH may include `flagEvents:[{kind,active,comment,happenedAt}]` for every unsaved flag toggle; the final event states must match the saved flags. Without this array, a flag state change records a single dated event automatically. History entries include `kind: note | flag | list`. System flag/list events do not require contact participants.
+- PATCH may include `listEvents:[{fromListId,toListId,happenedAt}]` to retain every draft move, including a return to the starting list. The sequence must start at the persisted list and end at the resolved saved list. Without it, a saved move generates one dated from/to history event. Invalid sequences and stale revisions roll back everything. Category-only changes select the matching permanent list; list-only changes update the category. Startup renaming is not a user transition.
+- Legacy stage inputs/exports remain accepted: lead/contacted/client → contact, qualified/proposal → evaluation. A former customer status alone does not establish mass production.
 - POST `/cards/:id/comments` `{text,version,contactIds}` -> Card.
 - POST `/lists` `{name,color}` -> List.
 - POST `/tags` `{name,color}` -> Tag.

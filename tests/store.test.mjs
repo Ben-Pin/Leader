@@ -83,7 +83,7 @@ test('fictional demo is complete, quarter-first and idempotent on restart', t =>
   const bootstrap = store.bootstrap();
   assert.equal(bootstrap.demo, true);
   assert.equal(bootstrap.stats.total, 12);
-  assert.equal(bootstrap.lists.length, 3);
+  assert.equal(bootstrap.lists.length, 6);
   const cards = store.listCards({ sort: 'contact' }).items;
   assert.ok(cards.every(card => card.description.startsWith('Демо-компания')));
   assert.ok(cards.every(card => card.email.endsWith('.example')));

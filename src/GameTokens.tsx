@@ -12,7 +12,7 @@ type TokenGroup = 'Mascot' | 'Travel' | 'Animals' | 'Nature' | 'Treasures' | 'Ev
 type GameToken = { id: string; name: string; group: TokenGroup; color: string; Icon?: LucideIcon; image?: string };
 
 // Contact sheets are processed once outside Leader. The gallery only consumes
-// the finished transparent PNGs; preview icons keep the remaining slots usable.
+// the finished transparent PNGs; unfinished icon slots stay out of the gallery.
 const finishedPieces: Record<string, Pick<GameToken, 'name' | 'group' | 'image'>> = {
   car: { name: 'Race car', group: 'Travel', image: '/tokens/race-car.png' },
   plane: { name: 'Propeller plane', group: 'Travel', image: '/tokens/propeller-plane.png' },
@@ -35,10 +35,20 @@ const finishedPieces: Record<string, Pick<GameToken, 'name' | 'group' | 'image'>
 };
 
 const newPieces: GameToken[] = [
+  { id: 'samurai-fox', name: 'Samurai fox', group: 'Mascot', color: '#c34e32', image: '/tokens/samurai-fox.png' },
+  { id: 'mechanical-bee', name: 'Mechanical bee', group: 'Animals', color: '#d9a23a', image: '/tokens/mechanical-bee.png' },
+  { id: 'eggplant-mascot', name: 'Eggplant', group: 'Mascot', color: '#8654a9', image: '/tokens/eggplant-mascot.png' },
+  { id: 'blue-whale', name: 'Blue whale', group: 'Animals', color: '#3c84ba', image: '/tokens/blue-whale.png' },
+  { id: 'bamboo-panda', name: 'Bamboo panda', group: 'Animals', color: '#8f9e71', image: '/tokens/bamboo-panda.png' },
+  { id: 'mail-truck', name: 'Mail truck', group: 'Travel', color: '#3c75ae', image: '/tokens/mail-truck.png' },
+  { id: 'steampunk-snail', name: 'Traveling snail', group: 'Animals', color: '#588c8c', image: '/tokens/steampunk-snail.png' },
+  { id: 'frog-king', name: 'Frog king', group: 'Mascot', color: '#75a54e', image: '/tokens/frog-king.png' },
+  { id: 'vintage-radio', name: 'Vintage radio', group: 'Everyday', color: '#b8503c', image: '/tokens/vintage-radio.png' },
+  { id: 'wise-tortoise', name: 'Wise tortoise', group: 'Animals', color: '#628678', image: '/tokens/wise-tortoise.png' },
   { id: 'apple', name: 'Apple', group: 'Nature', color: '#c53833', image: '/tokens/apple.png' },
   { id: 'pineapple', name: 'Pineapple', group: 'Nature', color: '#d9a43d', image: '/tokens/pineapple.png' },
   { id: 'sheep', name: 'Sheep', group: 'Animals', color: '#e7d9bd', image: '/tokens/sheep.png' },
-  { id: 'scientist', name: 'Scientist', group: 'Everyday', color: '#b88a68', image: '/tokens/scientist.png' },
+  { id: 'scientist', name: 'Einstein', group: 'Mascot', color: '#b88a68', image: '/tokens/scientist.png' },
   { id: 'boot', name: 'Hiking boot', group: 'Everyday', color: '#a7673d', image: '/tokens/hiking-boot.png' },
   { id: 'robot', name: 'Tin robot', group: 'Everyday', color: '#6994ae', image: '/tokens/tin-robot.png' },
   { id: 'typewriter', name: 'Typewriter', group: 'Everyday', color: '#a8844d', image: '/tokens/typewriter.png' },
@@ -155,26 +165,51 @@ export function GameTokenArt({ id, large = false }: { id: string; large?: boolea
   const Icon = token.Icon;
   return <span className={`game-token-art ${large ? 'large' : ''} ${token.image ? 'is-image' : ''}`} style={{ '--token-enamel': token.color } as CSSProperties} aria-hidden="true">
     <span className="game-token-aura"/>
-    <span className="game-token-figure">{token.image ? <img src={token.image} alt="" draggable={false}/> : Icon ? <Icon strokeWidth={1.75}/> : null}</span>
+    <span className="game-token-figure">{token.image ? <img src={token.image} alt="" decoding="async" draggable={false}/> : Icon ? <Icon strokeWidth={1.75}/> : null}</span>
   </span>;
+}
+
+const decodedPieces = new Map<string, Promise<boolean>>();
+function decodePiece(url: string): Promise<boolean> {
+  let pending = decodedPieces.get(url);
+  if (!pending) {
+    const image = new Image(); image.decoding = 'async'; image.src = url;
+    pending = image.decode().then(() => true, () => { decodedPieces.delete(url); return false; });
+    decodedPieces.set(url, pending);
+  }
+  return pending;
 }
 
 export function GameTokenGallery({ selectedId, onSelect }: { selectedId: string; onSelect: (id: string) => void }) {
   const [search, setSearch] = useState('');
-  const [group, setGroup] = useState<TokenGroup | 'All'>('All');
+  const [group, setGroup] = useState<TokenGroup | 'All'>('Mascot');
+  const [ready, setReady] = useState<Record<string, boolean>>({});
   const [previewId, setPreviewId] = useState(selectedId);
   const hold = useGameTokenHold();
   const choose = (id: string) => { hold.release(); onSelect(id); };
   const groups: (TokenGroup | 'All')[] = ['All', 'Mascot', 'Travel', 'Animals', 'Nature', 'Treasures', 'Everyday'];
   const shown = gameTokens.filter(token => (group === 'All' || token.group === group) && token.name.toLowerCase().includes(search.trim().toLowerCase()));
+  useEffect(() => {
+    let cancelled = false;
+    // Decode one complete row before requesting the next, avoiding 60 competing PNGs.
+    void (async () => {
+      for (let offset = 0; offset < shown.length; offset += 5) {
+        const row = shown.slice(offset, offset + 5);
+        const results = await Promise.all(row.map(async token => [token.id, await decodePiece(token.image!)] as const));
+        if (cancelled) return;
+        setReady(previous => ({ ...previous, ...Object.fromEntries(results) }));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [group, search]);
   return <div className="game-token-gallery">
     <p>Click to preview, double-click to choose. Hold a piece for a larger view. Your choice is saved in this browser.</p>
     <div className="game-token-gallery-tools">
       <input aria-label="Search game pieces" placeholder={`Search ${gameTokens.length} pieces`} value={search} onChange={event => setSearch(event.target.value)}/>
       <div className="game-token-groups" aria-label="Game piece groups">{groups.map(name => <button key={name} type="button" aria-pressed={group === name} onClick={() => setGroup(name)}>{name}</button>)}</div>
     </div>
-    <div className="game-token-grid">{shown.map(token => <button key={token.id} type="button" className={`game-token-option ${hold.heldId === token.id ? 'is-held' : ''}`} style={hold.heldId === token.id ? hold.wobbleStyle : undefined} aria-label={`Preview ${token.name} game piece; double-click to choose`} aria-pressed={previewId === token.id} onDragStart={event => event.preventDefault()} onPointerDown={event => { if (event.button === 0) hold.press(token.id); }} onClick={() => setPreviewId(token.id)} onDoubleClick={() => choose(token.id)}>
-      <GameTokenArt id={token.id}/><span>{token.name}</span>
+    <div className="game-token-grid">{shown.map(token => <button key={token.id} type="button" disabled={!ready[token.id]} className={`game-token-option ${hold.heldId === token.id ? 'is-held' : ''}`} style={hold.heldId === token.id ? hold.wobbleStyle : undefined} aria-label={`Preview ${token.name} game piece; double-click to choose`} aria-pressed={previewId === token.id} onDragStart={event => event.preventDefault()} onPointerDown={event => { if (event.button === 0) hold.press(token.id); }} onClick={() => setPreviewId(token.id)} onDoubleClick={() => choose(token.id)}>
+      {ready[token.id] ? <GameTokenArt id={token.id}/> : <span className="game-token-art token-loading" aria-hidden="true"><span>{ready[token.id] === false ? 'Image unavailable' : 'Loading…'}</span></span>}<span>{token.name}</span>
     </button>)}</div>
     {!shown.length && <p className="game-token-no-results">No pieces match that search.</p>}
     <div className="game-token-gallery-actions"><span>Selected preview: {gameTokens.find(token => token.id === previewId)?.name}</span><button type="button" onClick={() => choose(previewId)}>Use this piece</button></div>

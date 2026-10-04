@@ -53,10 +53,13 @@ test('real stdio MCP client shares persistent cards, detects conflicts, and rest
   assert.ok((await call('list_tags')).tags.some(item => item.id === tag.id));
   const card = await call('create_card', {
     listId: secondList.id, title: 'Connector test client', country: 'Israel', company: 'Fictional test company',
-    lastContact: '2026-09-28', tagIds: [tag.id], checklist: [{ text: 'Prepare sample', done: false }],
+    lastContact: '2026-09-28', status: 'rampUp', priority: 2, tagIds: [tag.id], checklist: [{ text: 'Prepare sample', done: false }],
   });
   assert.equal(card.tags[0].id, 'quarter:2026-3');
   assert.equal(card.country, 'Israel');
+  assert.equal(card.status, 'rampUp');
+  assert.equal((await call('search_cards', {status:'rampUp',priority:2,sort:'priority'})).items[0].id,card.id);
+  assert.equal((await call('search_cards', {status:'legacy',priority:2})).total,0);
   assert.equal(store.getCard(card.id).title, 'Connector test client', 'MCP writes are immediately visible through another SQLite connection');
   const page = await call('search_cards', { listId: secondList.id, q: 'Connector', limit: 1, offset: 0 });
   assert.equal(page.total, 1);

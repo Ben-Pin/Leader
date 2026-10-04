@@ -4,7 +4,7 @@ Status: accepted for the first prototype. Architectural decisions and their vali
 
 ## Components
 
-1. React + TypeScript browser UI, bundled with Vite. Localized Russian labels and Lucide icons. No remote fonts or CDN assets are required at runtime.
+1. React + TypeScript browser UI, bundled with Vite. English labels and Lucide icons. No remote fonts or CDN assets are required at runtime.
 2. Node.js 24 HTTP API. Serves built UI and JSON API at 127.0.0.1:4177. Development UI proxies `/api` to this server.
 3. Shared JavaScript service backed by Node's built-in SQLite driver, with WAL, foreign keys, indexed list/status/date queries, revision checks, and bounded pagination.
 4. MCP stdio entrypoint using the official TypeScript/JavaScript SDK. It uses the same service/database as HTTP. Standard output is reserved for MCP messages.
@@ -22,6 +22,12 @@ Portable format `leader-company`, version 1: named company metadata, all lists, 
 Optimistic concurrency: PATCH must include expected `version`. Concurrent stale updates return conflict. All multi-table changes are transactional. Soft archive is reversible.
 
 ## Scale
+
+Schema v12 expands account categories and project stages by renaming the previous constrained columns to `legacy_account_type` and `legacy_status`, adding new constrained columns, and copying/normalizing values. It preserves the referenced cards table, IDs, revisions, timestamps, collections, and foreign-key links. The activity child table is rebuilt transactionally to add `kind=list`, preserving existing history and participant snapshots. Old lead/contacted/client stages become Contact; qualified/proposal become Evaluation. Old raw values remain in the legacy columns; customer membership does not imply mass production.
+
+The company manager ensures six permanent lists and their stable display order. Existing Distributors is renamed to Agents with its ID retained; duplicate legacy aliases are merged without adding artificial history or changing card revisions. Each normal saved move records a dated snapshot of the list names. Explicit draft event sequences preserve intermediate moves and are validated atomically against the final saved state.
+
+User settings live in the browser: display name, motto, Wisdom, map visibility, and hidden list category keys use localStorage; a custom square map Blob uses IndexedDB. Map URLs are temporary object URLs and are revoked when replaced. Hidden lists retain all data and remain available in card/import selectors. Map display uses contain sizing and 70% opacity, so its 1:1 aspect ratio is preserved. These appearance preferences are not part of company JSON exports.
 
 Additive schema v4 adds `account_type`, `contact_quarter`, and `card_distributors`. Client-to-partner links use foreign keys, shared role/cycle validation and card revisions. Reverse client lists are derived and paginated. Portable import creates all endpoints before links; invalid links roll back the entire import. Migration batches use stable source IDs and the same service transaction layer; private migration inputs/reports remain outside the repository.
 

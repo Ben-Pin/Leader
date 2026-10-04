@@ -22,12 +22,12 @@ const cardFields = {
   lastContact: date.describe('Last contact date, YYYY-MM-DD. The year-quarter tag is generated automatically.'),
   contactQuarter: z.union([z.string().regex(/^[1-9]\d{3}-[1-4]$/), z.null()]).describe('Fallback YYYY-Q when the exact contact date is unknown. lastContact takes precedence; never invent a day.'),
   dueDate: date,
-  status: z.enum(['lead', 'contacted', 'qualified', 'proposal', 'client']),
+  status: z.enum(['contact', 'evaluation', 'rampUp', 'massProduction', 'legacy', 'lead', 'contacted', 'qualified', 'proposal', 'client']).describe('Project stage: contact, evaluation, rampUp, massProduction, legacy. Old values are accepted for import compatibility and normalized.'),
   priority: z.number().int().min(0).max(3),
   completed: z.boolean(),
   starred: z.boolean(),
   archived: z.boolean(),
-  accountType: z.enum(['unspecified', 'client', 'distributor', 'partner']),
+  accountType: z.enum(['lead', 'unspecified', 'opportunity', 'client', 'partner', 'distributor']),
   distributorIds: z.array(id).max(20).describe('Partner/distributor card IDs in this company. Links are bidirectional; client lists are derived.'),
   tagIds: z.array(id).max(50).describe('Custom tag IDs only. Never submit a derived quarter:YYYY-Q ID.'),
   checklist: z.array(z.object({ id: id.optional(), text: z.string().trim().min(1).max(2000), done: z.boolean().optional() })).max(100),
@@ -62,9 +62,10 @@ export function createMcpServer(store, companies) {
   tool('list_tags', 'Теги Leader', 'List custom and available derived quarter tags with colors and counts.', {}, (_input, db) => ({ tags: db.bootstrap().tags }));
   tool('search_cards', 'Найти карточки', 'Search and filter cards. Use offset and total to fetch further pages. Archived cards are omitted.', {
     listId: id.optional(), tag: id.optional(), q: z.string().max(200).optional(), country: z.string().max(120).optional(),
-    distributorId: id.optional(), accountType: z.enum(['unspecified', 'client', 'distributor', 'partner', 'channel']).optional(),
+    distributorId: id.optional(), accountType: z.enum(['lead', 'unspecified', 'opportunity', 'client', 'partner', 'distributor', 'channel']).optional(),
     view: z.enum(['all', 'active', 'completed', 'starred', ...flagKeys]).optional(),
-    sort: z.enum(['updated', 'contact', 'title', 'titleDesc']).optional(),
+    priority: cardFields.priority.optional(), status: cardFields.status.optional(),
+    sort: z.enum(['priority', 'updated', 'contact', 'title', 'titleDesc']).optional(),
     limit: z.number().int().min(1).max(200).optional(), offset: z.number().int().min(0).optional(),
   }, (input, db) => db.listCards(input));
   tool('country_coverage','География клиентов','Counts of non-archived cards by primary and secondary country, without inferred locations.',{},(_input,db)=>db.geography());

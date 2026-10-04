@@ -15,7 +15,7 @@ test('HTTP card workflow, revisions, origin protection and filters', async () =>
     const bootstrap = await (await fetch(`${origin}/api/bootstrap`)).json();
     assert.equal(bootstrap.csrfToken, 'test-token');
     assert.ok(bootstrap.lists.length);
-    const body = { title: 'HTTP acceptance example', contactName: 'QA contact', listId: bootstrap.lists[0].id, country: 'Нидерланды', lastContact: '2026-09-30' };
+    const body = { title: 'HTTP acceptance example', contactName: 'QA contact', listId: bootstrap.lists[0].id, country: 'Нидерланды', lastContact: '2026-09-30', status:'evaluation', priority:2 };
     const blocked = await fetch(`${origin}/api/cards`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal(blocked.status, 403);
     const alien = await fetch(`${origin}/api/cards`, { method: 'POST', headers: { ...headers, Origin: 'https://unrelated.invalid' }, body: JSON.stringify(body) });
@@ -24,6 +24,10 @@ test('HTTP card workflow, revisions, origin protection and filters', async () =>
     assert.equal(createdResponse.status, 201);
     const card = await createdResponse.json();
     assert.equal(card.tags[0].name, '2026-3');
+    const filtered=await (await fetch(`${origin}/api/cards?q=HTTP%20acceptance&status=evaluation&priority=2&sort=priority`)).json();
+    assert.equal(filtered.total,1);assert.equal(filtered.items[0].id,card.id);
+    const geography=await (await fetch(`${origin}/api/geography?q=HTTP%20acceptance&status=evaluation&priority=2`)).json();
+    assert.equal(geography.total,1);
     const updatedResponse = await fetch(`${origin}/api/cards/${card.id}`, { method: 'PATCH', headers, body: JSON.stringify({ version: card.version, starred: true, completed: true }) });
     assert.equal(updatedResponse.status, 200);
     const updated = await updatedResponse.json();

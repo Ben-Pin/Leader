@@ -1,6 +1,6 @@
 # Mouse-directed light for game pieces
 
-The current Tux is a transparent, hand-painted PNG. Its highlights and shadows are baked into the pixels. The other 49 pieces are local SVG-based enamel tokens. All 50 can respond to pointer position, but a flat image alone cannot reveal surfaces that were never modeled.
+All 60 finished pieces, including Tux, are transparent, hand-painted PNGs. Their highlights and shadows are baked into the pixels. They can respond to pointer position, but a flat image alone cannot reveal surfaces that were never modeled.
 
 ## Practical first experiment
 

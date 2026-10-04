@@ -150,3 +150,48 @@ button.signal-button:active{transform:translateY(1px)}
 .wisdom-eyebrow{display:block;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6482a8}
 .wisdom-row p{margin:6px 0 0;font:italic 13px/1.5 Georgia,"Times New Roman",serif;overflow-wrap:anywhere}
 .wisdom-row small{display:block;margin-top:8px;font-size:10px;color:#758ca8}
+.user-settings-modal { width: min(590px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; }
+.user-settings section { padding: 12px 0; border-bottom: 1px solid #dce5f3; }
+.user-settings h3 { margin: 0 0 12px; display: flex; align-items: center; gap: 8px; font-size: 14px; color: #234276; }
+.user-settings .form-hint { margin: 8px 0 0; font-size: 12px; color: #728098; }
+.settings-map-row { display: flex; gap: 14px; align-items: flex-start; margin-top: 12px; }
+.settings-map-row img { width: 112px; height: 112px; object-fit: contain; aspect-ratio: 1; border-radius: 9px; box-shadow: 0 4px 12px #142c4930; }
+.settings-map-row p { margin: 0 0 8px; overflow-wrap: anywhere; font-size: 12px; }
+.user-settings .settings-map-upload { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; padding: 7px 10px; cursor: pointer; color: #285292; border: 1px solid #b0c9ec; border-radius: 7px; background: #eef5ff; }
+.settings-map-upload input { width: 0; height: 0; opacity: 0; position: absolute; }
+.settings-map-upload:focus-within { outline: 2px solid #3675cc; }
+.settings-list-visibility { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.user-settings .list-transfer-check { margin: 0; }
+.workspace-caption { max-width: 148px; overflow: hidden; text-overflow: ellipsis; }
+.list-history-item .activity-dot { background: #727bde; }
+.card-filter-toggle { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 5px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #72839c; }
+.card-filter-toggle.active { background: #e6efff; color: #2862ab; border-color: #b8d2f4; }
+.card-filter-toggle b { font-size: 9px; }
+.card-filter-panel { padding: 8px 14px 12px; display: grid; gap: 8px; background: #f1f6ff; border-bottom: 1px solid #d8e5f7; }
+.card-filter-panel label { display: grid; grid-template-columns: 1fr 1.4fr; align-items: center; font-size: 11px; gap: 8px; color: #64738e; }
+.card-filter-panel select { width: 100%; min-width: 0; padding: 5px; border: 1px solid #c4d7f0; border-radius: 5px; background: #ffffffb8; font-size: 11px; color: #294a79; }
+.card-row.card-priority-1 { border-left: 3px solid #6d91c8; background-image: linear-gradient(90deg,#6499e00b,transparent 70%); }
+.card-row.card-priority-2 { border-left: 3px solid #d39b35; background-image: linear-gradient(90deg,#edbd560e,transparent 70%); }
+.card-row.card-priority-3 { border-left: 3px solid #d55e62; background-image: linear-gradient(90deg,#e4797d0e,transparent 70%); }
+.row-priority { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; line-height: 16px; padding: 0 5px; border-radius: 4px; border: 1px solid currentColor; }
+.row-priority.priority-1 { color: #5279ad; background: #ecf3ff; }
+.row-priority.priority-2 { color: #946b1d; background: #fff7df; }
+.row-priority.priority-3 { color: #b0444b; background: #fff0f0; }
+.token-loading { display: grid; place-items: center; border-radius: 12px; background: linear-gradient(130deg,#e4edf6,#f5f8fc); color: #9ca9bc; }
+.token-loading span { font-size: 10px; }
+.card-row .card-trailing { gap: 5px; max-width: 130px; text-align: right; }
+.row-work-state { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; white-space: nowrap; }
+.card-trailing .row-stage { font-size: 9px; line-height: 1.3; }
+.card-trailing .row-priority { flex-shrink: 0; }
+.main-pane .topbar { height: 46px; padding: 0 18px; }
+.main-pane .list-header { padding: 12px 18px 8px; gap: 10px; }
+.main-pane .list-heading h1 { font-size: 23px; line-height: 1.15; }
+.main-pane .list-heading .eyebrow { margin-bottom: 4px; }
+.main-pane .list-heading p { margin: 5px 0 0; }
+.main-pane .header-ticket-stack { gap: 6px; }
+.main-pane .header-action-button { width: 35px; height: 35px; min-height: 35px; }
+.main-pane .flag-filters { padding: 2px 18px 10px; gap: 10px; }
+.main-pane .flag-filters .signal-button { width: 28px; height: 28px; }
+.main-pane .list-toolbar { height: 34px; padding: 0 18px; gap: 6px; }
+.main-pane .card-group-heading { padding: 10px 10px 6px; }
+.row-top-state { display: inline-flex; align-items: center; gap: 5px; min-height: 16px; }

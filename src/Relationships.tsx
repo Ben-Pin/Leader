@@ -37,16 +37,16 @@ export function Relationships({ card, accountType, distributorIds, disabled, onT
   };
   return <section className="relationships" aria-label="Account relationships">
     <div className="relationship-heading"><Link2 size={14}/><strong>Relationships</strong><select aria-label="Account type" value={accountType} disabled={disabled} onChange={e => onType(e.target.value as AccountType)}>
-      <option value="unspecified">Potential customer</option><option value="client">Customer</option><option value="distributor">Distributor</option><option value="partner">Partner</option>
+      <option value="lead">Lead</option><option value="unspecified">Prospect</option><option value="opportunity">Opportunity</option><option value="client">Customer</option><option value="partner">Partner</option><option value="distributor">Agent</option>
     </select></div>
-    <div className="relationship-label">Distributors / partners</div>
+    <div className="relationship-label">Agents / partners</div>
     {distributorIds.map(id => {
       const item = known.find(x => x.id === id) || choices.find(x => x.id === id);
       return <div className="related-card" key={id}><button className="related-link" disabled={disabled} onClick={() => onOpen(id)}><span>{item?.title || id}{item?.archived ? ' (archived)' : ''}</span><ArrowUpRight size={13}/></button><button aria-label={`Unlink ${item?.title || id}`} title="Unlink" disabled={disabled} onClick={() => onLinks(distributorIds.filter(x => x !== id))}><X size={12}/></button></div>;
     })}
     {!distributorIds.length && <div className="relationship-empty">No partner linked</div>}
-    <button className="text-button" disabled={disabled} onClick={() => setPicker(!picker)}>{picker ? 'Close partner search' : '+ Link distributor / partner'}</button>
-    {picker && <div className="relationship-picker"><input aria-label="Find distributor or partner" placeholder="Search partner cards…" value={query} onChange={e => setQuery(e.target.value)} maxLength={200}/>{choices.filter(c => !distributorIds.includes(c.id)).map(c => <button key={c.id} disabled={disabled || distributorIds.length >= 20} onClick={() => { setKnown(previous => [...previous.filter(x => x.id !== c.id), c]); onLinks([...distributorIds, c.id]); setPicker(false); }}><span>{c.title}</span><small>{c.country}</small></button>)}{!choices.length && <small>No matching partner cards</small>}</div>}
+    <button className="text-button" disabled={disabled} onClick={() => setPicker(!picker)}>{picker ? 'Close partner search' : '+ Link agent / partner'}</button>
+    {picker && <div className="relationship-picker"><input aria-label="Find agent or partner" placeholder="Search partner cards…" value={query} onChange={e => setQuery(e.target.value)} maxLength={200}/>{choices.filter(c => !distributorIds.includes(c.id)).map(c => <button key={c.id} disabled={disabled || distributorIds.length >= 20} onClick={() => { setKnown(previous => [...previous.filter(x => x.id !== c.id), c]); onLinks([...distributorIds, c.id]); setPicker(false); }}><span>{c.title}</span><small>{c.country}</small></button>)}{!choices.length && <small>No matching partner cards</small>}</div>}
     {(accountType === 'distributor' || accountType === 'partner' || total > 0) && <div className="linked-clients"><div className="relationship-label">Clients <b>{total}</b></div>{clients.map(c => <div className="related-card" key={c.id}><button className="related-link" disabled={disabled} onClick={() => onOpen(c.id)}><span>{c.title}<small>{c.country}</small></span><ArrowUpRight size={13}/></button></div>)}{!total && <div className="relationship-empty">No clients linked yet</div>}{clients.length < total && <button className="text-button" disabled={busy} onClick={loadMore}>{busy ? 'Loading…' : `Show more (${clients.length} / ${total})`}</button>}</div>}
     {error && <p role="alert" className="error-message">{error}</p>}
   </section>;
