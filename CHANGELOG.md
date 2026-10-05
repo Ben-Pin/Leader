@@ -4,6 +4,8 @@ Public release baseline: 1.0.0. Corrections made during initial release preparat
 
 ## 1.0.0 - 2026-10-05
 
+- About, README and the English manual emphasize local database storage, no application uploads and the deliberate single-user product principle; optional MCP host access has its own clearly described boundary.
+
 - Both list and full company exports have the requested local ddmmhh-hhmm timestamp, with Documents suggested by compatible browser save dialogs.
 - Fresh installations connect only the fictional woodland Demo; existing customer databases remain intact.
 - About uses the same Leader wordmark, font and dot as the sidebar header.

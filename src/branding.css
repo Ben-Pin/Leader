@@ -33,3 +33,6 @@
   .about-modal .about-version dd { margin-bottom: 7px; }
   .about-token, .about-token .game-token-art.large { width: 169.5px; height: 210px; }
 }
+
+.about-privacy { margin: 10px 0; color: #405ba5; font-size: 12px; line-height: 1.55; }
+.about-solo { margin: 10px 0 14px; color: #647591; font-size: 11px; line-height: 1.5; }

@@ -8,6 +8,10 @@ Use it for business development and sales, partnerships, supplier research or a 
 
 Leader runs locally with an English browser interface, SQLite storage and an optional MCP connector. Explore your company relationships on a globe and keep separate databases for different projects.
 
+**All company databases are local.** Leader does not upload database contents to the Internet or external servers. The browser connects to the service on the same computer; SQLite databases and automatic backups remain local. Only the fictional woodland Demo is included in this repository. Exports and optional MCP access are under your control; an assistant connected through MCP can receive the data its authorized tools return.
+
+**Single-user by design.** There will be no multi-user collaboration edition. *A leader walks ahead alone - that's what makes a leader.*
+
 **[User manual](docs/USER_MANUAL.md)** · **[PDF manual](public/Leader-User-Manual-1.0.0.pdf)** · **[Documentation index](docs/README.md)**
 
 ## What it does

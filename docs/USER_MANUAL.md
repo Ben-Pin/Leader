@@ -8,7 +8,13 @@ Leader turns a database of companies into a practical workspace for relationship
 
 Use it for business development and sales, partnerships, supplier research or a personal job search. For BD and sales, it helps you track qualification, evaluation and production conversations. For a job search, it keeps employers, recruiters, discussions and next steps together. The interface uses commercial labels, but the underlying company cards and contacts support many kinds of company research and relationship management.
 
-Your records stay on your computer. Company cards, multiple contacts, dated discussion history, tags, geography and next steps provide the working context; lists, Stage and Priority help you decide where to focus.
+**All company databases are local.** Cards, contacts, discussions and backups are stored as files on your computer. Leader does not upload their contents to the Internet or to external servers. Its browser communicates only with the Leader service on the same computer; there is no cloud database, telemetry upload or automatic external synchronization.
+
+**Single-user by design.** There will be no multi-user collaboration edition. *A leader walks ahead alone - that's what makes a leader.*
+
+Local storage keeps database contents under your control. If you choose to export a file, share it or connect MCP to an assistant, that is a separate action: an MCP host can receive card data through the tools you authorize. A cloud assistant may process that data on its provider's servers. Leave MCP disconnected if no external assistant should receive database information.
+
+Company cards, multiple contacts, dated discussion history, tags, geography and next steps provide the working context; lists, Stage and Priority help you decide where to focus.
 
 Open **About Leader → Open user manual (PDF)** for this bundled English guide. It opens from the local server and does not need an online document viewer.
 
@@ -16,7 +22,7 @@ About shows the application version, **Concept and Product: Benjamin Pinkas**, a
 
 ## Install and open Leader
 
-You need Git, Node.js 24 or newer, pnpm matching `package.json`, and a modern browser. Repository access is needed to clone this private project. Dependencies are installed once; normal use then runs locally.
+You need Git, Node.js 24 or newer, pnpm matching `package.json`, and a modern browser. The source repository is public; no GitHub sign-in is needed to clone it. Dependencies are installed once; normal use then runs locally.
 
 ```sh
 git clone https://github.com/Ben-Pin/Leader.git

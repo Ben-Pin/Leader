@@ -44,6 +44,12 @@ Blue rail, monochrome icons, translucent surfaces and subtle motion. User settin
 
 Sixty finished transparent game pieces are selectable from a gallery opening on Mascot, including Lucky cat and Einstein. Click previews; double-click/Use this piece selects. Holding enlarges the same figure in place with slight wobble; release returns it. These are local PNG assets, not 3D models. Browser preferences/custom maps are separate from database exports.
 
+## Local data and single-user principle
+
+All company databases and automatic backups are local files. Leader does not send database contents to the Internet or external servers; its browser calls the loopback HTTP service on the same computer. The source repository is public and includes only fictional demonstration records. An optional MCP host may receive tool results, so a connected cloud assistant has a separate data boundary chosen by the user.
+
+There will be no multi-user collaboration edition. A leader walks ahead alone - that's what makes a leader.
+
 ## Boundaries
 
 Tested desktop environment: Windows with Node.js 24 and a browser. Linux/ARM64 and macOS use the same intended runtime workflow but are not physically verified. Leader is not a packaged desktop installer, multi-user CRM or public hosting service. There is no cloud synchronization, email sending, built-in mail/PST/TickTick importer, reminders or attachments. Wisdom has no content source. Pointer-directed piece lighting remains research. MCP tools are implemented and tested; host installation is not automatic.

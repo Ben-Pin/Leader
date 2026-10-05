@@ -31,6 +31,8 @@ For 1.0.0, the isolated woodland preview supplied fresh 1280 x 720 screenshots o
 
 Final release preparation keeps the user-approved baseline at 1.0.0. About and the sidebar header have matching computed font, weight, letter spacing and dot color. The PDF uses Leader. on its cover and every page header and still has twenty-six inspected pages. Both export paths use the requested local ddmmhh-hhmm suffix; HTTP company downloads also provide a timestamped Content-Disposition filename. Full company export opens the browser save picker before its first data request, suggesting Documents; the native save dialog itself was not automated.
 
+About, README and the English manual explain that company databases and backups stay local and that Leader is intentionally single-user. The manual and connector documentation distinguish local application storage from data returned to an optional MCP host. The updated About layout and all twenty-six regenerated PDF pages were inspected; both local preview servers returned the exact source PDF and version 1.0.0.
+
 Before changing GitHub visibility, all twenty-three existing commits and their 347 unique file blobs were checked. They contain no databases, mail archives, private exports, personal machine paths or credential patterns. Both historical PDF versions contain fictional data; historical demo seeds use reserved example addresses. Email-pattern matches outside the reserved domains were the literal name@company.com input placeholder, now changed to name@company.example. Artwork and manual screenshot assets contain only the supplied artwork and fictional Demo.
 
 ## Boundaries

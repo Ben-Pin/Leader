@@ -37,6 +37,10 @@ An absolute **LEADER_DB** (or legacy LEADER_DB_PATH) selects a single fixed SQLi
 | `list_disconnected_companies` | List retained databases available to reconnect |
 | `reconnect_company` | Reconnect a retained database without copying it |
 
+## Local data and the assistant boundary
+
+Leader stores every company database locally and makes no network uploads of database contents. The MCP server also runs locally over stdio. However, its host receives the card data returned by authorized tools. If the host is a cloud assistant, it may send or process those results on the assistant provider's servers. Enable MCP only when you want that assistant to access your records; leaving it disconnected keeps this optional route closed. This is separate from the browser application, which communicates with the local Leader service.
+
 ## Safe reads and edits
 
 Search returns `{items,total,limit,offset}`, default page size 100, maximum 200. Fetch successive pages until total is reached. Archived records are omitted. The browser's global text search is a UI choice; MCP combines the explicit query filters supplied.
