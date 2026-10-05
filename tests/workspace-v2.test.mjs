@@ -23,7 +23,7 @@ test('flag and star activation dates are independent of contact dates, stable on
     restored.importData(db.exportData());assert.deepEqual(restored.getCard(c.id),c);
   }finally{db.close();restored.close();}
 });
-test('two countries, tag/comment search, Z–A, pagination and geography count cards once per country',()=>{
+test('two countries, tag/comment search, Z-A, pagination and geography count cards once per country',()=>{
   const db=createStore({path:':memory:',seed:false});try{
     const listId=db.createList({name:'Test'}).id,tagId=db.createTag({name:'Microcontrollers'}).id;
     const a=db.createCard({title:'Alpha',listId,country:'Germany',secondaryCountry:'Japan',tagIds:[tagId],flags:{logisticsIssue:{active:true,comment:'Tracking XYZ'}}});
@@ -40,10 +40,11 @@ test('two countries, tag/comment search, Z–A, pagination and geography count c
 test('disconnect is recoverable across restart and never deletes a company database',()=>{
   const directory=mkdtempSync(join(tmpdir(),'leader-disconnect-test-'));let manager=createCompanyManager({directory,seed:false});
   try{
-    const db=manager.getStore('clab');const card=db.createCard({title:'Preserved',listId:db.bootstrap().lists[0].id});
-    manager.disconnectCompany('clab');assert.equal(manager.listCompanies().some(c=>c.id==='clab'),false);assert.throws(()=>manager.getStore('clab'));
-    manager.close();manager=createCompanyManager({directory,seed:false});assert.equal(manager.listCompanies().some(c=>c.id==='clab'),false);
-    manager.reconnectCompany('clab');assert.equal(manager.getStore('clab').getCard(card.id).title,'Preserved');
-    manager.disconnectCompany('demo');manager.disconnectCompany('brothers-in-arms');assert.throws(()=>manager.disconnectCompany('clab'));
+    const companyId=manager.createCompany({name:'Disconnect fixture'}).id;
+    const db=manager.getStore(companyId);const card=db.createCard({title:'Preserved',listId:db.bootstrap().lists[0].id});
+    manager.disconnectCompany(companyId);assert.equal(manager.listCompanies().some(c=>c.id===companyId),false);assert.throws(()=>manager.getStore(companyId));
+    manager.close();manager=createCompanyManager({directory,seed:false});assert.equal(manager.listCompanies().some(c=>c.id===companyId),false);
+    manager.reconnectCompany(companyId);assert.equal(manager.getStore(companyId).getCard(card.id).title,'Preserved');
+    manager.disconnectCompany('demo');assert.throws(()=>manager.disconnectCompany(companyId));
   }finally{manager.close();assert.ok(resolve(directory).startsWith(resolve(tmpdir())+sep));assert.ok(directory.includes('leader-disconnect-test-'));rmSync(directory,{recursive:true,force:true});}
 });

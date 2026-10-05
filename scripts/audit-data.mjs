@@ -2,7 +2,7 @@ import { createCompanyManager } from '../server/companies.mjs';
 import { resolve } from 'node:path';
 
 const directory = process.env.LEADER_DATA_DIR || resolve('data');
-const companyId = process.argv[2] || 'clab';
+const companyId = process.argv[2] || 'demo';
 const manager = createCompanyManager({ directory, seed: false });
 try {
   const bundle = manager.exportCompany(companyId);

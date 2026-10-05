@@ -60,9 +60,6 @@ export function createCompanyManager({ directory, seed = true }) {
   };
   // Existing single-database work is retained as its own connected database.
   catalog.prepare('INSERT OR IGNORE INTO companies(id,name,file) VALUES(?,?,?)').run('demo', 'Demo', 'leader.sqlite');
-  for (const [id, name] of [['clab', 'Clab'], ['brothers-in-arms', 'BrothersInArms']]) {
-    const result = catalog.prepare('INSERT OR IGNORE INTO companies(id,name,file) VALUES(?,?,?)').run(id, name, `companies/${id}.sqlite`);
-    if (result.changes) manager.getStore(id).ensurePermanentLists();
-  }
+  // New installations contain only Demo. Existing registry rows and files remain intact.
   return manager;
 }

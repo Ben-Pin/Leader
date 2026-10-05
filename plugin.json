@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "leader",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "Local company and contact workspace for BD, sales, partnerships and job searching.",
   "author": {
     "name": "Leader"

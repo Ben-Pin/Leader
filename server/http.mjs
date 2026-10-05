@@ -6,6 +6,7 @@ import { resolve, dirname } from 'node:path';
 import { createStore, StoreError } from './store.mjs';
 import { createCompanyManager } from './companies.mjs';
 import { createBackupService } from './backups.mjs';
+import { companyExportFileName, listExportStamp } from '../src/list-transfer.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export function createHttpApp({ store, companies, token = randomBytes(32).toString('hex') }) {
@@ -40,8 +41,11 @@ export function createHttpApp({ store, companies, token = randomBytes(32).toStri
     app.post('/api/companies', (request, response) => response.status(201).json(companies.createCompany(request.body)));
     app.post('/api/companies/import', (request, response) => response.status(201).json(companies.importCompany(request.body)));
     app.get('/api/companies/:id/export', (request, response) => {
-      response.setHeader('Content-Disposition', `attachment; filename="leader-${request.params.id}.json"`);
-      response.json(companies.exportCompany(request.params.id));
+      const bundle = companies.exportCompany(request.params.id);
+      const date = new Date(bundle.exportedAt);
+      const filename = companyExportFileName(bundle.company.name, date);
+      response.setHeader('Content-Disposition', `attachment; filename="leader-${request.params.id}-${listExportStamp(date)}.json"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      response.json(bundle);
     });
   }
   app.use('/api', (request, _response, next) => {

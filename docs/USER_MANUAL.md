@@ -1,6 +1,6 @@
 # Leader user manual
 
-For Leader 1.0.1. [All documentation](README.md)
+For Leader 1.0.0. [All documentation](README.md)
 
 ## A workspace for company relationships
 
@@ -196,7 +196,7 @@ The central-column **down arrow** is **List import**; the **up arrow** is **List
 
 For export, select the desired list/view or search and filters, then click List export. Every matching page is included, not only the currently loaded rows. Independently choose whether to include **About customer** and **conversation history**; both are on by default. Excluding them clears those sections in the exported copy only. Current flags, their comments and structured company/contact fields are still included.
 
-Compatible browsers ask where to save and initially suggest Documents. Other browsers use their configured download destination; enable their “ask where to save” setting if needed. The list filename ends in local `ddmmhh-hhmm`, for example `041018-1823` on 4 October at 18:23. Full company exports use the normal browser download flow instead.
+Compatible browsers ask where to save and initially suggest Documents. Other browsers use their configured download destination; enable their “ask where to save” setting if needed. Both list and full company export filenames end in local `ddmmhh-hhmm`, for example `051018-1823` on 5 October at 18:23. Full company export opens the same save dialog in compatible browsers; other browsers use their download settings.
 
 For import, choose a Leader list JSON file and a mode:
 
@@ -207,7 +207,7 @@ Existing card IDs are skipped, not updated or merged. Equal names with different
 
 ## Company databases, agents and partners
 
-**Company databases** creates an empty database, exports the selected database, or imports a complete **Leader company JSON** into a new separate database. Use a new company name when one already exists; imports do not replace existing data.
+**Company databases** creates an empty database, exports the selected database with a timestamped filename, or imports a complete **Leader company JSON** into a new separate database. Use a new company name when one already exists; imports do not replace existing data.
 
 Removing a database from the connected list preserves its files. Open **Disconnected databases → Reconnect** to bring it back. The last connected database cannot be disconnected.
 

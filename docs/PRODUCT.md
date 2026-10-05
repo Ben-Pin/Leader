@@ -1,10 +1,10 @@
 # Leader product
 
-Leader 1.0.1 is a single-user local workspace for company databases, contacts and relationships, including BD, sales, partnerships and job searching. The English browser UI and optional MCP connector share the same validated SQLite service. This document describes implemented behavior; [the user manual](USER_MANUAL.md) explains operation.
+Leader 1.0.0 is a single-user local workspace for company databases, contacts and relationships, including BD, sales, partnerships and job searching. The English browser UI and optional MCP connector share the same validated SQLite service. This document describes implemented behavior; [the user manual](USER_MANUAL.md) explains operation.
 
 ## Account organization
 
-Each connected company has independent cards, lists, tags, contacts and History. A fresh checkout provides fictional Demo data and empty additional workspaces. Real customer databases are supplied separately and are never part of source control.
+Each connected company has independent cards, lists, tags, contacts and History. A fresh checkout provides only fictional woodland Demo data. Real customer databases are supplied separately and are never part of source control.
 
 Six permanent lists appear in spectrum order: **Leads, Prospects, Opportunities, Customers, Partners, Agents**. List and account category stay synchronized. Lists cannot be deleted, but can be hidden in User settings. Existing Distributors is renamed to Agents while retaining IDs and relationships. Saved moves record source, destination and timestamp in History. Custom lists remain available; only empty custom lists can be deleted.
 

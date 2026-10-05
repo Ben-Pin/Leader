@@ -15,7 +15,7 @@ Customer data and local audit results do not belong in Git. This document descri
 
 ## Local audit
 
-From the checkout, run `node scripts/audit-data.mjs <company-id>`; for the fictional workspace, use `demo`. Find actual IDs through GET /api/companies or MCP list_companies. The existing script defaults to clab when no ID is supplied, so prefer an explicit ID.
+From the checkout, run `node scripts/audit-data.mjs <company-id>`; for the fictional workspace, use `demo`. Find actual IDs through GET /api/companies or MCP list_companies. The script defaults to the fictional demo when no ID is supplied; supply the selected database ID explicitly for other workspaces.
 
 The report counts cards by list, unverified/empty countries, missing exact contact dates, absent contacts/emails/descriptions, category/list mismatches and History entries. It deliberately makes no card edits. Opening an older database through the shared manager can perform normal schema/list initialization, so export it before auditing an older installation.
 

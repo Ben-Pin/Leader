@@ -109,6 +109,7 @@ test('real stdio MCP client shares persistent cards, detects conflicts, and rest
 test('MCP selects companies explicitly and roundtrips flags and company exports', { timeout: 30000 }, async () => {
   const directory = mkdtempSync(join(tmpdir(), 'leader-mcp-companies-test-'));
   const companies = createCompanyManager({ directory, seed: false });
+  const firstId = companies.createCompany({ name: 'QA first' }).id, secondId = companies.createCompany({ name: 'QA second' }).id;
   const transport = new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../server/mcp.mjs', import.meta.url))],
     env: { ...process.env, LEADER_DB: '', LEADER_DB_PATH: '', LEADER_DATA_DIR: directory, LEADER_SEED: 'false' }, stderr: 'pipe' });
   const client = new Client({ name: 'leader-company-test', version: '1.0.0' });
@@ -117,18 +118,18 @@ test('MCP selects companies explicitly and roundtrips flags and company exports'
     const call = async (name, args = {}) => value(await client.callTool({ name, arguments: args }));
     const discovery = await client.listTools();
     assert.ok(discovery.tools.find(tool => tool.name === 'create_card').inputSchema.required.includes('companyId'));
-    assert.ok((await call('list_companies')).companies.some(company => company.name === 'BrothersInArms'));
-    const lists = await call('list_lists', { companyId: 'clab' });
-    const card = await call('create_card', { companyId: 'clab', listId: lists.lists[0].id, title: 'Scoped fixture', flags: { inQuote: { active: true, comment: 'Waiting' }, swIssue: { active: true, comment: 'Kernel test' }, hwIssue: { active: true, comment: 'Board test' } } });
-    assert.equal((await call('search_cards', { companyId: 'clab', view: 'inQuote' })).total, 1);
-    assert.equal((await call('search_cards', { companyId: 'brothers-in-arms' })).total, 0);
-    assert.equal((await client.callTool({ name: 'get_card', arguments: { companyId: 'brothers-in-arms', id: card.id } })).isError, true);
-    for (const view of ['swIssue','hwIssue']) assert.equal((await call('search_cards', { companyId: 'clab', view })).total, 1);
-    const bundle = await call('export_company', { id: 'clab' });
+    assert.ok((await call('list_companies')).companies.some(company => company.name === 'QA second'));
+    const lists = await call('list_lists', { companyId: firstId });
+    const card = await call('create_card', { companyId: firstId, listId: lists.lists[0].id, title: 'Scoped fixture', flags: { inQuote: { active: true, comment: 'Waiting' }, swIssue: { active: true, comment: 'Kernel test' }, hwIssue: { active: true, comment: 'Board test' } } });
+    assert.equal((await call('search_cards', { companyId: firstId, view: 'inQuote' })).total, 1);
+    assert.equal((await call('search_cards', { companyId: secondId })).total, 0);
+    assert.equal((await client.callTool({ name: 'get_card', arguments: { companyId: secondId, id: card.id } })).isError, true);
+    for (const view of ['swIssue','hwIssue']) assert.equal((await call('search_cards', { companyId: firstId, view })).total, 1);
+    const bundle = await call('export_company', { id: firstId });
     const copy = await call('import_company', { name: 'MCP copy', bundle });
     assert.equal((await call('get_card', { companyId: copy.id, id: card.id })).flags.inQuote.comment, 'Waiting');
-    await call('update_card', { companyId: 'clab', id: card.id, version: card.version, flags: { inQuote: { active: false, comment: 'Accepted' }, swIssue: { active: false, comment: 'Kernel test' }, hwIssue: { active: false, comment: 'Board test' } } });
-    assert.equal((await call('search_cards', { companyId: 'clab', view: 'active' })).total, 0);
+    await call('update_card', { companyId: firstId, id: card.id, version: card.version, flags: { inQuote: { active: false, comment: 'Accepted' }, swIssue: { active: false, comment: 'Kernel test' }, hwIssue: { active: false, comment: 'Board test' } } });
+    assert.equal((await call('search_cards', { companyId: firstId, view: 'active' })).total, 0);
     const copied = await call('get_card', { companyId: copy.id, id: card.id });
     assert.equal(copied.flags.inQuote.active, true);
     assert.equal(copied.flags.swIssue.comment, 'Kernel test');

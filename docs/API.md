@@ -2,7 +2,7 @@
 
 All responses JSON. Errors: `{error: string, code?: string}` with appropriate HTTP status. API prefix `/api`.
 
-Leader 1.0.1. `Card`: `{id,listId,title,description,company,country,secondaryCountry,contacts,contactName,email,lastContact,contactQuarter,dueDate,status,priority,completed,starred,archived,importedPending,accountType,distributorIds,distributors,clientCount,flags,version,createdAt,updatedAt,tags,checklist,activity}`.
+Leader 1.0.0. `Card`: `{id,listId,title,description,company,country,secondaryCountry,contacts,contactName,email,lastContact,contactQuarter,dueDate,status,priority,completed,starred,archived,importedPending,accountType,distributorIds,distributors,clientCount,flags,version,createdAt,updatedAt,tags,checklist,activity}`.
 
 - `status`: `contact | evaluation | rampUp | massProduction | legacy` (project stage, independent of list/category). `massProduction` is the stable internal key displayed as **Production**.
 - `importedPending`: boolean marker for a list-imported card, cleared by its first saved edit.
@@ -44,7 +44,7 @@ Browser writes send `X-Leader-Token: csrfToken`. All scoped requests send `X-Lea
 - POST `/companies/:id/reconnect` `{}` -> reconnected company.
 - GET `/companies` -> `{companies:[{id,name}]}`.
 - POST `/companies` `{name}` -> new empty `{id,name}`.
-- GET `/companies/:id/export` -> complete `leader-company` JSON with downloadable filename.
+- GET `/companies/:id/export` -> complete `leader-company` JSON with a local `ddmmhh-hhmm` timestamp in its downloadable filename (UTF-8 company name plus an ASCII ID fallback).
 - POST `/companies/import` `{name,bundle}` -> newly connected `{id,name}`. Validates the full bundle; existing databases are not overwritten.
 
 Normal startup uses the company registry. Explicit `LEADER_DB` or `LEADER_DB_PATH` remains supported for a single fixed database (tests/legacy integrations), without company management routes. `LEADER_DATA_DIR` selects an alternate company directory for isolated testing.

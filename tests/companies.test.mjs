@@ -12,8 +12,27 @@ function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'leader-companies-test-'));
   const manager = createCompanyManager({ directory, seed: false });
   t.after(() => { manager.close(); assert.ok(resolve(directory).startsWith(resolve(tmpdir()) + sep)); assert.ok(directory.includes('leader-companies-test-')); rmSync(directory, { recursive: true, force: true }); });
-  return Object.assign(manager, { testDirectory: directory });
+  const first = manager.createCompany({ name: 'QA first' }), second = manager.createCompany({ name: 'QA second' });
+  return Object.assign(manager, { testDirectory: directory, firstId: first.id, secondId: second.id });
 }
+
+test('fresh installations contain only the fictional woodland Demo and preserve existing databases', t => {
+  const directory = mkdtempSync(join(tmpdir(), 'leader-fresh-demo-test-'));
+  const manager = createCompanyManager({ directory });
+  let reopened;
+  t.after(() => { reopened?.close(); manager.close(); rmSync(directory, { recursive: true, force: true }); });
+  assert.deepEqual(manager.listCompanies().map(c => ({ ...c })), [{ id: 'demo', name: 'Demo' }]);
+  const demo = manager.exportCompany('demo');
+  assert.equal(demo.cards.length, 12);
+  assert.ok(demo.cards.every(card => card.description.startsWith('Fictional demo company.')));
+  assert.ok(demo.cards.flatMap(card => card.contacts).every(contact => contact.email.endsWith('.example')));
+  const company = manager.createCompany({ name: 'Preserved fixture' });
+  const store = manager.getStore(company.id);
+  const card = store.createCard({ title: 'Existing fixture', listId: store.bootstrap().lists[0].id });
+  reopened = createCompanyManager({ directory });
+  assert.equal(reopened.getStore(company.id).getCard(card.id).title, card.title);
+  assert.deepEqual(reopened.listCompanies().map(c => c.name), ['Demo', 'Preserved fixture']);
+});
 
 test('independent flags preserve comments, enter In work and clear separately with revision checks', () => {
   const db = createStore({ path: ':memory:', seed: false });
@@ -39,21 +58,21 @@ test('independent flags preserve comments, enter In work and clear separately wi
 
 test('company export/import roundtrips all card fields, flags, archived records, history and identities', t => {
   const manager = fixture(t);
-  const clab = manager.getStore('clab'), brothers = manager.getStore('brothers-in-arms');
+  const clab = manager.getStore(manager.firstId), brothers = manager.getStore(manager.secondId);
   const list = clab.bootstrap().lists[0], tag = clab.createTag({ name: 'Embedded' });
   let card = clab.createCard({ title: 'Company fixture', contactName: 'QA buyer', listId: list.id, country: 'France', lastContact: '2026-09-01', tagIds: [tag.id], flags: { inQuote: { active: true, comment: 'Quote 24' } }, checklist: [{ text: 'Follow up', done: false }] });
   card = clab.addComment(card.id, { version: card.version, text: 'Imported history must survive', contactIds: [card.contacts[0].id] });
   card = clab.updateCard(card.id, { version: card.version, archived: true });
   assert.equal(brothers.bootstrap().stats.total, 0);
   assert.throws(() => brothers.getCard(card.id), e => e.status === 404);
-  const bundle = manager.exportCompany('clab');
-  const copy = manager.importCompany({ name: 'Clab copy', bundle });
+  const bundle = manager.exportCompany(manager.firstId);
+  const copy = manager.importCompany({ name: 'QA first copy', bundle });
   const copied = manager.getStore(copy.id);
   assert.deepEqual(copied.getCard(card.id), card);
   copied.updateCard(card.id, { version: card.version, title: 'Independent edit', archived: false });
   assert.equal(clab.getCard(card.id).title, 'Company fixture');
-  assert.equal(manager.exportCompany('clab').cards.length, 1);
-  assert.throws(() => manager.importCompany({ name: 'Clab', bundle }), e => e.code === 'DUPLICATE_COMPANY');
+  assert.equal(manager.exportCompany(manager.firstId).cards.length, 1);
+  assert.throws(() => manager.importCompany({ name: 'QA first', bundle }), e => e.code === 'DUPLICATE_COMPANY');
   const malformed = structuredClone(bundle); malformed.cards[0].lastContact = '2026-02-31';
   assert.throws(() => manager.importCompany({ name: 'Bad import', bundle: malformed }));
   assert.ok(!manager.listCompanies().some(c => c.name === 'Bad import'));
@@ -67,18 +86,20 @@ test('HTTP requires an explicit company for writes and never crosses company bou
   const server = createHttpApp({ companies: manager, token: 'test' }).listen(0, '127.0.0.1');
   await once(server, 'listening');
   const origin = `http://127.0.0.1:${server.address().port}`;
-  const headers = { 'Content-Type': 'application/json', 'X-Leader-Token': 'test', Origin: origin, 'X-Leader-Company': 'clab' };
+  const headers = { 'Content-Type': 'application/json', 'X-Leader-Token': 'test', Origin: origin, 'X-Leader-Company': manager.firstId };
   try {
     const bootstrap = await (await fetch(`${origin}/api/bootstrap`, { headers })).json();
-    assert.equal(bootstrap.company.name, 'Clab');
-    assert.ok(bootstrap.companies.some(c => c.name === 'BrothersInArms'));
+    assert.equal(bootstrap.company.name, 'QA first');
+    assert.ok(bootstrap.companies.some(c => c.name === 'QA second'));
     const body = JSON.stringify({ title: 'HTTP scoped', listId: bootstrap.lists[0].id, flags: { administrativeIssue: { active: true, comment: 'VAT details' } } });
     const response = await fetch(`${origin}/api/cards`, { method: 'POST', headers, body });
     assert.equal(response.status, 201); const card = await response.json();
-    assert.equal((await fetch(`${origin}/api/cards/${card.id}`, { headers: { ...headers, 'X-Leader-Company': 'brothers-in-arms' } })).status, 404);
+    assert.equal((await fetch(`${origin}/api/cards/${card.id}`, { headers: { ...headers, 'X-Leader-Company': manager.secondId } })).status, 404);
     const { 'X-Leader-Company': unused, ...withoutCompany } = headers;
     assert.equal((await fetch(`${origin}/api/cards`, { method: 'POST', headers: withoutCompany, body })).status, 400);
-    const exported = await (await fetch(`${origin}/api/companies/clab/export`)).json();
+    const exportResponse = await fetch(`${origin}/api/companies/${manager.firstId}/export`);
+    assert.match(exportResponse.headers.get('content-disposition'), /leader-[a-z0-9-]+-\d{6}-\d{4}\.json/);
+    const exported = await exportResponse.json();
     const restored = await fetch(`${origin}/api/companies/import`, { method: 'POST', headers, body: JSON.stringify({ name: 'HTTP restored', bundle: exported }) });
     assert.equal(restored.status, 201);
     assert.equal(manager.getStore((await restored.json()).id).getCard(card.id).flags.administrativeIssue.comment, 'VAT details');

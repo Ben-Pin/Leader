@@ -1,6 +1,6 @@
 # Leader architecture
 
-Current implementation: Leader 1.0.1. Browser and MCP mutations share validation, optimistic revisions and SQLite transactions.
+Current implementation: Leader 1.0.0. Browser and MCP mutations share validation, optimistic revisions and SQLite transactions.
 
 ## Components
 
@@ -27,7 +27,7 @@ flowchart LR
 
 ## Company isolation and files
 
-Default storage is data/ beside this checkout: companies.sqlite is the registry, leader.sqlite is the legacy Demo store, and companies/ contains additional databases. A fresh registry connects Demo and empty additional workspaces; their customer content is never seeded from private correspondence.
+Default storage is data/ beside this checkout: companies.sqlite is the registry, leader.sqlite is the legacy Demo store, and companies/ contains additional databases. A fresh registry connects only the fictional woodland Demo. Additional databases are created or imported explicitly; existing registry rows and database files are preserved.
 
 HTTP selects a database with X-Leader-Company. MCP requires companyId on scoped tools in multi-company mode. There is no global server-side active company. Disconnect updates the registry and closes its store without deleting files; reconnect reuses those files. The last connected database is protected.
 

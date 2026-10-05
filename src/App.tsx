@@ -12,7 +12,7 @@ import { Relationships } from './Relationships';
 import { ClientGlobe } from './ClientGlobe';
 import { GameTokenArt, GameTokenGallery, gameTokens, useGameTokenHold } from './GameTokens';
 import { interleaveWisdom, wisdomThoughts } from './wisdom';
-import { listExportStamp, prepareListCards } from './list-transfer';
+import { companyExportFileName, listExportStamp, prepareListCards } from './list-transfer';
 import { countryNames,tagCategory } from './geography';
 import { permanentListTypes, listNameForType, displayListName } from './account-lists';
 import { UserSettings, type UserPreferences } from './UserSettings';
@@ -656,7 +656,7 @@ export default function App() {
             {draft.contacts.map((contact, index) => <div className="contact-row" key={contact.id}>
               <label>Name<input value={contact.name} maxLength={300} placeholder="Full name" aria-label={`Contact name ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, name:e.target.value} : c))} disabled={detailLoading || saving}/></label>
               <label>Position<input value={contact.role} maxLength={500} placeholder="Position / role" aria-label={`Contact position ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, role:e.target.value} : c))} disabled={detailLoading || saving}/></label>
-              <label>Email<input type="email" value={contact.email} maxLength={320} placeholder="name@company.com" aria-label={`Contact email ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, email:e.target.value} : c))} disabled={detailLoading || saving}/></label>
+              <label>Email<input type="email" value={contact.email} maxLength={320} placeholder="name@company.example" aria-label={`Contact email ${index + 1}`} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c, email:e.target.value} : c))} disabled={detailLoading || saving}/></label>
               <label className="contact-status">Status<select aria-label={`Contact status ${index + 1}`} value={contact.status} onChange={e => updateDraft('contacts', draft.contacts.map(c => c.id === contact.id ? {...c,status:e.target.value as ContactStatus} : c))} disabled={detailLoading || saving}>{contactStatuses.map(status => <option key={status} value={status}>{contactStatusLabel(status)}</option>)}</select></label>
               <IconButton label={`Delete contact ${index + 1}`} onClick={() => updateDraft('contacts', draft.contacts.filter(c => c.id !== contact.id))} disabled={detailLoading || saving}><X size={14}/></IconButton>
             </div>)}
@@ -683,7 +683,7 @@ export default function App() {
     {modal === 'archive' && selected && <Modal title="Move to archive?" onClose={() => setModal(null)}><p>Card «{selected.title}» will remain in the local database. It can be restored through the connector.</p>{dirty && <p className="error-message">Unsaved card changes will be discarded.</p>}<div className="modal-actions"><button className="secondary-button" onClick={() => setModal(null)}>Cancel</button><button className="primary-button" onClick={archiveCard}>Archive</button></div></Modal>}
     {modal === 'card' && <CreateCardModal lists={bootstrap.lists} initialList={selection.kind === 'list' ? selection.id : bootstrap.lists[0]?.id || ''} token={bootstrap.csrfToken} onClose={() => setModal(null)} onCreated={card => { setModal(null); setSelection({ kind: 'list', id: card.listId }); setSearch(''); setRefreshKey(k => k + 1); loadBootstrap().catch(() => {}); openCard(card, true); setToast('New card created'); }}/>}
     {(modal === 'list' || modal === 'tag') && <CreateLabelModal kind={modal} token={bootstrap.csrfToken} onClose={() => setModal(null)} onCreated={item => { const kind = modal; setModal(null); loadBootstrap().catch(() => {}); setToast(kind === 'list' ? 'List created' : 'Tag created'); if (kind === 'list') chooseSelection({ kind: 'list', id: item.id }); else if (draft) updateDraft('tagIds', [...draft.tagIds, item.id]); }}/>}
-    {modal === 'about' && <Modal title="About Leader" onClose={() => setModal(null)} className="about-modal"><div className="about-summary"><div className="about-details"><div className="about-brand"><div className="about-logo"><LeaderLogo /></div><div><strong>Leader<span>.</span></strong><p>{motto}</p></div></div><dl className="about-version"><dt>Version</dt><dd>{appVersion}</dd><dt>Concept and Product</dt><dd>Benjamin Pinkas</dd><dt>Development</dt><dd>With OpenAI Codex</dd></dl></div><div className="about-token" aria-hidden="true"><GameTokenArt id={aboutTokenId} large/></div></div><p className="about-purpose">A local workspace for researching companies and leads, managing contacts, and tracking follow-up - for business development, sales, partnerships, or job searching.</p><a className="manual-link" href={`/Leader-User-Manual-${appVersion}.pdf`} target="_blank" rel="noopener noreferrer"><Download size={17}/>Open user manual (PDF)</a>{bootstrap.demo && <div className="demo-notice">Demo companies and contacts are fictional.</div>}<button className="primary-button about-close" onClick={() => setModal(null)}>Close</button></Modal>}
+    {modal === 'about' && <Modal title="About Leader" onClose={() => setModal(null)} className="about-modal"><div className="about-summary"><div className="about-details"><div className="about-brand"><div className="about-logo"><LeaderLogo /></div><div><span className="brand-name">Leader<span className="brand-dot">.</span></span><p>{motto}</p></div></div><dl className="about-version"><dt>Version</dt><dd>{appVersion}</dd><dt>Concept and Product</dt><dd>Benjamin Pinkas</dd><dt>Development</dt><dd>With OpenAI Codex</dd></dl></div><div className="about-token" aria-hidden="true"><GameTokenArt id={aboutTokenId} large/></div></div><p className="about-purpose">A local workspace for researching companies and leads, managing contacts, and tracking follow-up - for business development, sales, partnerships, or job searching.</p><a className="manual-link" href={`/Leader-User-Manual-${appVersion}.pdf`} target="_blank" rel="noopener noreferrer"><Download size={17}/>Open user manual (PDF)</a>{bootstrap.demo && <div className="demo-notice">Demo companies and contacts are fictional.</div>}<button className="primary-button about-close" onClick={() => setModal(null)}>Close</button></Modal>}
     {toast && <div className="toast" role="status"><Check size={16}/><span>{toast}</span><IconButton label="Dismiss notification" onClick={() => setToast('')}><X size={14}/></IconButton></div>}
   </div>;
 }
@@ -785,11 +785,22 @@ function CompaniesModal({ bootstrap, onClose, onConnected,onChanged }: { bootstr
   const exportCompany = async () => {
     setBusy(true); setError('');
     try {
+      const fileName = companyExportFileName(bootstrap.company.name, new Date());
+      type SaveHandle = { createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> };
+      const savePicker = (window as Window & { showSaveFilePicker?: (options: object) => Promise<SaveHandle> }).showSaveFilePicker;
+      // Keep click activation by opening the picker before awaiting the database request.
+      const saveHandle = savePicker ? await savePicker.call(window, { suggestedName: fileName, startIn: 'documents', types: [{ description: 'Leader JSON', accept: { 'application/json': ['.json'] } }] }) : null;
       const data = await request(`/companies/${bootstrap.company.id}/export`);
-      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-      const anchor = document.createElement('a'); anchor.href = url; anchor.download = `Leader-${bootstrap.company.name.replace(/[^\p{L}\p{N} _-]/gu, '_')}.json`;
-      document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (e) { setError(errorText(e)); }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      if (saveHandle) {
+        const writable = await saveHandle.createWritable();
+        await writable.write(blob); await writable.close();
+      } else {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a'); anchor.href = url; anchor.download = fileName;
+        document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
+    } catch (e) { if (!(e instanceof DOMException && e.name === 'AbortError')) setError(errorText(e)); }
     finally { setBusy(false); }
   };
   return <Modal title="Company databases" onClose={() => { if (!busy) onClose(); }} className="companies-modal">

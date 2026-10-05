@@ -8,7 +8,7 @@ Use it for business development and sales, partnerships, supplier research or a 
 
 Leader runs locally with an English browser interface, SQLite storage and an optional MCP connector. Explore your company relationships on a globe and keep separate databases for different projects.
 
-**[User manual](docs/USER_MANUAL.md)** · **[PDF manual](public/Leader-User-Manual-1.0.1.pdf)** · **[Documentation index](docs/README.md)**
+**[User manual](docs/USER_MANUAL.md)** · **[PDF manual](public/Leader-User-Manual-1.0.0.pdf)** · **[Documentation index](docs/README.md)**
 
 ## What it does
 
@@ -21,7 +21,7 @@ Leader runs locally with an English browser interface, SQLite storage and an opt
 - Agent/partner relationships, portable list transfers, complete company exports and automatic local backups.
 - Personal settings, a square background map and 60 finished collectible game pieces.
 
-Each connected company has a separate database. A fresh checkout supplies fictional Demo data; your customer cards are transferred separately.
+Each connected company has a separate database. A fresh checkout supplies only the woodland Demo: twelve fictional animal-run companies buying nuts, vegetables and fruit, with reserved .example contact addresses. Your customer cards are transferred separately.
 
 ![Leader interface with fictional demonstration cards](docs/screenshots/manual-overview.jpg)
 
@@ -61,7 +61,7 @@ The development UI uses the address printed by Vite and proxies the local API. P
 
 ## Current scope
 
-Leader 1.0.1 is a single-user local web application. The server binds to loopback; it is not a public website or a cloud service. There is no live cloud sync, built-in PST/mail/TickTick importer, email sending, reminder scheduler, or attachment manager. Wisdom has a setting but no connected thought-card source. The local MCP implementation is included; installation into a host is a separate step.
+Leader 1.0.0 is a single-user local web application. The server binds to loopback; it is not a public website or a cloud service. There is no live cloud sync, built-in PST/mail/TickTick importer, email sending, reminder scheduler, or attachment manager. Wisdom has a setting but no connected thought-card source. The local MCP implementation is included; installation into a host is a separate step.
 
 See [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [MCP connector](docs/CONNECTOR.md) and [Verification](docs/VERIFICATION.md).
 

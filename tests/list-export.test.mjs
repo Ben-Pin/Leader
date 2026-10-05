@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { listExportStamp, prepareListCards } from '../src/list-transfer.ts';
+import { companyExportFileName, listExportStamp, prepareListCards } from '../src/list-transfer.ts';
 
 test('list export uses the requested local ddmmhh-hhmm suffix', () => {
   assert.equal(listExportStamp(new Date(2026, 9, 4, 13, 7)), '041013-1307');
+  assert.equal(companyExportFileName('Forest: Demo/woodland', new Date(2026, 9, 5, 0, 4)), 'Leader-Forest_ Demo_woodland-051000-0004.json');
 });
 
 test('list export choices omit only internal notes requested by the user', () => {

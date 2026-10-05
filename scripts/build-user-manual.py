@@ -26,6 +26,32 @@ OUTPUT = ROOT / 'public' / f'Leader-User-Manual-{VERSION}.pdf'
 BLUE = colors.HexColor('#405ba5')
 INK = colors.HexColor('#27364c')
 MUTED = colors.HexColor('#64748b')
+WORDMARK = 'Helvetica-Bold'
+for font in [Path('C:/Windows/Fonts/segoeuib.ttf'), Path('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')]:
+    if font.exists():
+        pdfmetrics.registerFont(TTFont('LeaderWordmark', str(font)))
+        WORDMARK = 'LeaderWordmark'
+        break
+
+def draw_wordmark(canvas, x, y, size):
+    canvas.setFont(WORDMARK, size)
+    text = canvas.beginText(x, y)
+    text.setCharSpace(-size / 24)
+    text.setFillColor(colors.HexColor('#303e5b'))
+    text.textOut('Leader')
+    text.setFillColor(colors.HexColor('#7693e6'))
+    text.textOut('.')
+    canvas.drawText(text)
+
+class LeaderWordmark(Flowable):
+    def __init__(self, size):
+        super().__init__()
+        self.size = size
+        self.width = pdfmetrics.stringWidth('Leader.', WORDMARK, size)
+        self.height = size * 1.2
+    def draw(self):
+        draw_wordmark(self.canv, 0, self.size * .2, self.size)
+
 MONO = 'Courier'
 for font in [Path('C:/Windows/Fonts/consola.ttf'), Path('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf')]:
     if font.exists():
@@ -44,7 +70,7 @@ def plain(text):
 
 def inline(text):
     text = html.escape(plain(text))
-    # Markdown URLs resolve to the private repository; the manual itself remains local.
+    # Markdown URLs resolve to the source repository; the manual itself remains local.
     def link(match):
         label, url=match.groups()
         if not re.match(r'https?://', url):
@@ -147,9 +173,7 @@ def page_chrome(canvas, doc):
     canvas.setStrokeColor(BLUE)
     canvas.setLineWidth(.6)
     canvas.line(48,height-45,width-48,height-45)
-    canvas.setFont('Helvetica-Bold',9)
-    canvas.setFillColor(BLUE)
-    canvas.drawString(48,height-34,'LEADER')
+    draw_wordmark(canvas,48,height-34,12)
     canvas.setFillColor(MUTED)
     canvas.setFont('Helvetica',8)
     canvas.drawRightString(width-48,height-34,'USER MANUAL  /  '+VERSION)
@@ -168,7 +192,7 @@ def build():
     logo=Table([[logo_art]],colWidths=[76],rowHeights=[76],hAlign='LEFT')
     logo.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),BLUE),('BOX',(0,0),(-1,-1),.7,colors.HexColor('#90a5d4')),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(0,0),(-1,-1),'CENTER'),('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8)]))
     story=[Spacer(1,28),logo,Spacer(1,22)]
-    story.append(Paragraph('Leader',ParagraphStyle(name='CoverTitle',fontName='Helvetica-Bold',fontSize=49,leading=55,textColor=BLUE,spaceAfter=12)))
+    story.extend([LeaderWordmark(49),Spacer(1,12)])
     story.append(Paragraph('of the lead-free world',ParagraphStyle(name='CoverMotto',fontName='Helvetica',fontSize=15,leading=22,textColor=MUTED,spaceAfter=44)))
     story.append(Paragraph('Company databases<br/>and contact management',ParagraphStyle(name='CoverStatement',fontName='Helvetica-Bold',fontSize=25,leading=33,textColor=INK,spaceAfter=25)))
     story.append(Paragraph('A local workspace for researching companies and leads, managing contacts, and tracking follow-up - for business development, sales, partnerships, or job searching.',STYLES['ManualBody']))

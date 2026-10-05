@@ -34,3 +34,7 @@ This repository has no published release package or hosted service. A source upd
 Version 1.0.0 is the first release baseline. New/changed functionality advances MINOR; fixes or documentation-only changes advance PATCH; breaking compatibility advances MAJOR. Update package.json and both plugin manifests together. UI and MCP read the package version. Keep the English Markdown manual current and regenerate the bundled PDF with `python scripts/build-user-manual.py` (authoring dependencies: ReportLab and Pillow). Python is not required to run Leader.
 
 After building, `node scripts/preview-demo.mjs` starts an isolated woodland Demo on port 4180. It uses a temporary directory and never opens customer databases. Capture current screenshots into docs/screenshots/; all people and companies in documentation must be fictional. regions.json stores the pixel regions used in the PDF; recapture those regions when screenshot dimensions change. Keep complete fields, notes and controls visible and inspect the embedded images, not only the source screenshots. The illustrated piece catalogue uses docs/game-piece-personalities.json and finished assets under public/tokens/. Render the PDF and inspect every page before committing it.
+
+## Release branches
+
+`main` holds the public 1.0.0 release. Develop the next version on branch `1.1`; merge into `main` when that version is ready for release. Real databases, mail and private exports never belong in either branch.

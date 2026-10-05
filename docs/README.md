@@ -1,11 +1,11 @@
 # Leader documentation
 
-These documents describe Leader 1.0.1. The interface and user manual are English. The bundled PDF opens locally from About.
+These documents describe Leader 1.0.0. The interface and user manual are English. The bundled PDF opens locally from About.
 
 | Document | Read it for |
 | --- | --- |
 | [User manual](USER_MANUAL.md) | Setup, photographed toolbar guide, Auto-tag algorithm, flag comments/history, settings, transfers and software stack |
-| [PDF user manual](../public/Leader-User-Manual-1.0.1.pdf) | Bundled offline reading, also available from About |
+| [PDF user manual](../public/Leader-User-Manual-1.0.0.pdf) | Bundled offline reading, also available from About |
 | [Toolbar quick reference](screenshots/manual-toolbar-explained.png) | Photographed blue-toolbar buttons with numbered explanations |
 | [Product](PRODUCT.md) | Implemented features, concepts and current boundaries |
 | [Architecture](ARCHITECTURE.md) | Storage, shared service, migrations, privacy and browser preferences |

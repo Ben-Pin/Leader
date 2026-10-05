@@ -12,5 +12,9 @@ data/
 test-results/
 work/
 *.zip
+*.pst
+*.ost
+private-exports/
+mail/
 # Legacy manual may remain open in an external PDF reader; current files carry the release version.
 public/Leader-User-Manual.pdf

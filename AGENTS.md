@@ -12,4 +12,5 @@
 - Prefer soft archive to irreversible deletion. Do not install global services or publish the local app publicly.
 
 - Release baseline: 1.0.0. Increment the minor version for functional additions/changes, patch for fixes/docs, and major for breaking compatibility. Keep package, plugin manifests, UI, MCP and documentation versions aligned.
+- Initial release preparation remains version 1.0.0, including corrections found on 5 October 2026. Keep the public release on main; subsequent development belongs on branch 1.1.
 - The English PDF manual is bundled under public/ and opened locally from About; update it with user-facing functionality.

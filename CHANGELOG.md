@@ -1,16 +1,19 @@
 # Changelog
 
-Release baseline: 1.0.0. Functional additions/changes advance MINOR; fixes/docs advance PATCH; breaking compatibility advances MAJOR. This is a local browser application, not a packaged installer or cloud deployment.
+Public release baseline: 1.0.0. Corrections made during initial release preparation remain in this baseline; development after publication continues on branch 1.1. Functional additions/changes advance MINOR; fixes/docs advance PATCH; breaking compatibility advances MAJOR. This is a local browser application, not a packaged installer or cloud deployment.
 
-## 1.0.1 - 2026-10-05
+## 1.0.0 - 2026-10-05
+
+- Both list and full company exports have the requested local ddmmhh-hhmm timestamp, with Documents suggested by compatible browser save dialogs.
+- Fresh installations connect only the fictional woodland Demo; existing customer databases remain intact.
+- About uses the same Leader wordmark, font and dot as the sidebar header.
 
 - Expanded the English user manual with a photographed, numbered guide to all ten blue-toolbar buttons.
 - Documented Auto-tag scope, quarter calculation, automatic future-year groups, missing-date handling and repeat-run counts.
 - Added screenshots and step-by-step instructions for active flag comments and dated enabled/disabled History events, including resolution text entered before disabling a flag.
-- Added the application software stack and regenerated the bundled local PDF. Application behavior is unchanged.
+- Added the application software stack and regenerated the bundled local PDF.
 - The About manual link uses the release-specific PDF filename to avoid cached older editions and allow an older file to remain open in an external reader.
 
-## 1.0.0 - 2026-10-04
 
 - Six permanent account lists in spectrum order; Agents replaces Distributors. List visibility settings and dated saved move history.
 - Independent Contact, Evaluation, Ramp Up, Production and Legacy stages; Priority filters/sorting and compact list markers.
